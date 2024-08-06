@@ -26,6 +26,9 @@ patches:
     - patch_file: "patches/1.5.19-0001-disable-werror.patch"
       patch_description: "disable -Werror for gcc5"
       patch_type: "portability"
+    - patch_file: "patches/002-xplane_patch.patch"
+      patch_description: "Replace exit() with abort()"
+      patch_type: "xplane"
   "1.5.16":
     - patch_file: "patches/1.5.15-0001-disable-werror.patch"
       patch_description: "disable -Werror for gcc5"

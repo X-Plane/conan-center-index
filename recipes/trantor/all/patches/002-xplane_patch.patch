@@ -1,0 +1,22 @@
+diff --git a/trantor/net/inner/Socket.cc b/trantor/net/inner/Socket.cc
+index 2aff5a0..d04fdfd 100755
+--- a/trantor/net/inner/Socket.cc
++++ b/trantor/net/inner/Socket.cc
+@@ -65,7 +65,7 @@ void Socket::bindAddress(const InetAddress &localaddr)
+     else
+     {
+         LOG_SYSERR << ", Bind address failed at " << localaddr.toIpPort();
+-        exit(1);
++        abort();
+     }
+ }
+ void Socket::listen()
+@@ -75,7 +75,7 @@ void Socket::listen()
+     if (ret < 0)
+     {
+         LOG_SYSERR << "listen failed";
+-        exit(1);
++        abort();
+     }
+ }
+ int Socket::accept(InetAddress *peeraddr)
