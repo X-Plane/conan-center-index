@@ -1,0 +1,1803 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5cd876f..badf330 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -28,7 +28,7 @@ set(JWT_SSL_LIBRARY_OPTIONS OpenSSL LibreSSL wolfSSL)
+ set(JWT_SSL_LIBRARY OpenSSL CACHE STRING "Determines which SSL library to build with")
+ set_property(CACHE JWT_SSL_LIBRARY PROPERTY STRINGS ${JWT_SSL_LIBRARY_OPTIONS})
+ 
+-set(JWT_JSON_TRAITS_OPTIONS boost-json danielaparker-jsoncons kazuho-picojson nlohmann-json)
++set(JWT_JSON_TRAITS_OPTIONS boost-json danielaparker-jsoncons kazuho-picojson nlohmann-json open-source-parsers-jsoncpp)
+ 
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+ 
+@@ -71,11 +71,9 @@ find_package(nlohmann_json CONFIG)
+ if(NOT nlohmann_json_FOUND)
+   message(STATUS "jwt-cpp: using FetchContent for nlohmann json")
+   include(FetchContent)
+-  FetchContent_Declare(nlohmann_json
+-      URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
+-      URL_MD5 127794b2c82c0c5693805feaa2a703e2
+-  )
+-  FetchContent_MakeAvailable(nlohmann_json)
++  fetchcontent_declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
++                       URL_MD5 127794b2c82c0c5693805feaa2a703e2)
++  fetchcontent_makeavailable(nlohmann_json)
+ endif()
+ 
+ set(JWT_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+diff --git a/example/jwks-verify.cpp b/example/jwks-verify.cpp
+index 2464a5f..de4b136 100644
+--- a/example/jwks-verify.cpp
++++ b/example/jwks-verify.cpp
+@@ -1,5 +1,6 @@
+ #include <iostream>
+ #include <jwt-cpp/jwt.h>
++#include <openssl/rand.h>
+ 
+ int main() {
+ 	std::string raw_jwks =
+@@ -9,11 +10,10 @@ int main() {
+     "kty": "RSA",
+     "use": "sig",
+     "x5c": [
+-      "MIIC+DCCAeCgAwIBAgIJBIGjYW6hFpn2MA0GCSqGSIb3DQEBBQUAMCMxITAfBgNVBAMTGGN1c3RvbWVyLWRlbW9zLmF1dGgwLmNvbTAeFw0xNjExMjIyMjIyMDVaFw0zMDA4MDEyMjIyMDVaMCMxITAfBgNVBAMTGGN1c3RvbWVyLWRlbW9zLmF1dGgwLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMnjZc5bm/eGIHq09N9HKHahM7Y31P0ul+A2wwP4lSpIwFrWHzxw88/7Dwk9QMc+orGXX95R6av4GF+Es/nG3uK45ooMVMa/hYCh0Mtx3gnSuoTavQEkLzCvSwTqVwzZ+5noukWVqJuMKNwjL77GNcPLY7Xy2/skMCT5bR8UoWaufooQvYq6SyPcRAU4BtdquZRiBT4U5f+4pwNTxSvey7ki50yc1tG49Per/0zA4O6Tlpv8x7Red6m1bCNHt7+Z5nSl3RX/QYyAEUX1a28VcYmR41Osy+o2OUCXYdUAphDaHo4/8rbKTJhlu8jEcc1KoMXAKjgaVZtG/v5ltx6AXY0CAwEAAaMvMC0wDAYDVR0TBAUwAwEB/zAdBgNVHQ4EFgQUQxFG602h1cG+pnyvJoy9pGJJoCswDQYJKoZIhvcNAQEFBQADggEBAGvtCbzGNBUJPLICth3mLsX0Z4z8T8iu4tyoiuAshP/Ry/ZBnFnXmhD8vwgMZ2lTgUWwlrvlgN+fAtYKnwFO2G3BOCFw96Nm8So9sjTda9CCZ3dhoH57F/hVMBB0K6xhklAc0b5ZxUpCIN92v/w+xZoz1XQBHe8ZbRHaP1HpRM4M7DJk2G5cgUCyu3UBvYS41sHvzrxQ3z7vIePRA4WF4bEkfX12gvny0RsPkrbVMXX1Rj9t6V7QXrbPYBAO+43JvDGYawxYVvLhz+BJ45x50GFQmHszfY3BR9TPK8xmMmQwtIvLu1PMttNCs7niCYkSiUv2sc2mlq1i3IashGkkgmo="
++      "MIIE2jCCAsICAQEwDQYJKoZIhvcNAQELBQAwMzELMAkGA1UEBhMCVVMxEDAOBgNVBAoMB0pXVC1DUFAxEjAQBgNVBAMMCWxvY2FsaG9zdDAeFw0yMzEyMjIxMzIzNTdaFw0zMzEyMTkxMzIzNTdaMDMxCzAJBgNVBAYTAlVTMRAwDgYDVQQKDAdKV1QtQ1BQMRIwEAYDVQQDDAlsb2NhbGhvc3QwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDl0gyL9KCpoXsJlvBaBUsJTAgvFhbgsBjpxT6m2xv0fgtGDBwgaiPvuMnClTU/kYkKb8c1GTkMedKp9YcM57HWTk9yqGTy6QBnMMxbAJYNwWQ4Dbr4qKSC6C3KzYws/Bqyv8OC9NAOyqJbtdp4iObRjyaet+PLTXywuu02xtyRg3B+1aAONgUVDyS5u57NSD4rEZ+rw30Ne1doSClWmMDqEd72y8cjx3eAqn0HcAxSQ6MNMmNk7/M8FQD3DTM1Ef0G5oHyJIw7WmY+gxuD8386r/CkswINzadMwObPlTSdAN8BRzedtrqgb+D/K4pi2zhCiuIVujFX6M/hsGvj7g2M9E9MR8iEuHWCY9frQKIR+JTH3D1snoJp60qKoa51qBznsEr9RP2utGniPCq3+JY+ZX0JK8vl5tiSZpy6N0yRbRmY3XLdA5fKRzhcsB3eUrmTtr9ywjZX7Ll6QMvUyicubGTojhqJFQbvuvvops9PoCMXFE3x6cJ2QhPoi8+BvUdYisrtjDFe+YgrgQvPMa/CpOpDJJDEs2SVRcauCZOUdqLCwZylNuW0CgIjWP8l99P7l1zGeT8VJPhmABYyPM+RtNYDamAlUOCqRqgz/gPjEeMeulQTvH1lAqATAAX1oftlq6o4VoqROs2M3eAXqPhvsLBeTmCob+5ca887MkcP6wIDAQABMA0GCSqGSIb3DQEBCwUAA4ICAQBW2kREK4hlzxCDqykxrwfbQpiPwrbFmn+3RDJla+pI4L3wrvYT1nU96guFIU3zKnbMzqwPMRUCUjadr2jKxAmMWxCd/ThHQB+ne5xTvx7/6RVQfGjyMCG/SZtSH8/aO7ILNRtPT+SL5ZZwezaqv6gD89tSXB/w/0pYXy70wDuU17KCrTsKSISWGJ1cKi5l2R/m/ZaGjcV8U8NcFepF2bX3u/i0zhaqOqjiwrSEt7fWGDLabPs6n7GtfibZROEDZ/h0JrDINC+6mSfTOYAMJvGjeHA3H/NvzqR+CJgpXGCqElqVuBF0HdxPmwRRBoZC/BLIEcz0VHmB4rcpfaV47TZT+J+04fHYp4Y1S0u112CDrDe+61cDrnbDHC7aGX0G93pYSBKAB1e3LLc9rXQgf2F0pRtFB3rgZA9MtJ+TL7DUvY4VXJNq3v7UolIdldYRdk21YqAS2Hp0fivvFoEk2P/WbwDEErxR0FkZ/JQoI9FMJ9AvDxa4MsFFtlQVInfD2HUu+nhnuEAA8R6L+F2XqhfLY/H7H31iFBK6UCuqptED71VwWHqfBsAPRhLXAqGco7Ln2dzioyj0QdwJqQQIqigltSYtXxfIMLW0BekQ5yln7QTxnZlobkPHUW9s3NK+OMLuKCzVREzjic/aioQP3cRBMXkG2deMwrk3aX8yJuz4gA=="
+     ],
+-    "n": "yeNlzlub94YgerT030codqEztjfU_S6X4DbDA_iVKkjAWtYfPHDzz_sPCT1Axz6isZdf3lHpq_gYX4Sz-cbe4rjmigxUxr-FgKHQy3HeCdK6hNq9ASQvMK9LBOpXDNn7mei6RZWom4wo3CMvvsY1w8tjtfLb-yQwJPltHxShZq5-ihC9irpLI9xEBTgG12q5lGIFPhTl_7inA1PFK97LuSLnTJzW0bj096v_TMDg7pOWm_zHtF53qbVsI0e3v5nmdKXdFf9BjIARRfVrbxVxiZHjU6zL6jY5QJdh1QCmENoejj_ytspMmGW7yMRxzUqgxcAqOBpVm0b-_mW3HoBdjQ",
+-    "e": "AQAB",
+-    "x5t": "NjVBRjY5MDlCMUIwNzU4RTA2QzZFMDQ4QzQ2MDAyQjVDNjk1RTM2Qg"
++    "n": "5dIMi_SgqaF7CZbwWgVLCUwILxYW4LAY6cU-ptsb9H4LRgwcIGoj77jJwpU1P5GJCm_HNRk5DHnSqfWHDOex1k5Pcqhk8ukAZzDMWwCWDcFkOA26-Kikgugtys2MLPwasr_DgvTQDsqiW7XaeIjm0Y8mnrfjy018sLrtNsbckYNwftWgDjYFFQ8kubuezUg-KxGfq8N9DXtXaEgpVpjA6hHe9svHI8d3gKp9B3AMUkOjDTJjZO_zPBUA9w0zNRH9BuaB8iSMO1pmPoMbg_N_Oq_wpLMCDc2nTMDmz5U0nQDfAUc3nba6oG_g_yuKYts4QoriFboxV-jP4bBr4-4NjPRPTEfIhLh1gmPX60CiEfiUx9w9bJ6CaetKiqGudagc57BK_UT9rrRp4jwqt_iWPmV9CSvL5ebYkmacujdMkW0ZmN1y3QOXykc4XLAd3lK5k7a_csI2V-y5ekDL1MonLmxk6I4aiRUG77r76KbPT6AjFxRN8enCdkIT6IvPgb1HWIrK7YwxXvmIK4ELzzGvwqTqQySQxLNklUXGrgmTlHaiwsGcpTbltAoCI1j_JffT-5dcxnk_FST4ZgAWMjzPkbTWA2pgJVDgqkaoM_4D4xHjHrpUE7x9ZQKgEwAF9aH7ZauqOFaKkTrNjN3gF6j4b7CwXk5gqG_uXGvPOzJHD-s",
++    "e": "AQAB"
+ 	},
+ {
+ 		"kid":"internal-123456",
+@@ -27,16 +27,75 @@ int main() {
+ 	}
+ ]})";
+ 
+-	std::string token =
+-		"eyJraWQiOiJpbnRlcm5hbC1nYXRld2F5LWp3dC5hcGkuc2MubmV0IiwiYWxnIjoiUlMyNTYiLCJ0eXAiOiJKV1QifQ."
+-		"eyJuYmYiOjE1Mzk3NjcwMTUsImlhdCI6MTUzOTc2Njk5MiwiaXNzIjoia29uZyIsImh0dHA6XC9cL3dzbzIub3JnXC9nYXRld2F5XC9zdWJzY3"
+-		"JpYmVyIjoidXZ0dXNlcjJAY2FyYm9uLnN1cGVyIiwib3JpZ2luYWxfaXNzIjoiaHR0cDpcL1wvd3NvMi5vcmdcL2dhdGV3YXkiLCJzdWIiOiJ1"
+-		"dnR1c2VyMkBjYXJib24uc3VwZXIiLCJodHRwOlwvXC93c28yLm9yZ1wvZ2F0ZXdheVwvZW5kdXNlciI6InV2dHVzZXIyQGNhcmJvbi5zdXBlci"
+-		"IsImp0aSI6IjI0NmJkZTlhLWQ4OGQtNGRlZC1hODhmLTRhMTNhOWJmODQ4ZiIsImh0dHA6XC9cL3dzbzIub3JnXC9nYXRld2F5XC9hcHBsaWNh"
+-		"dGlvbm5hbWUiOiJ1dnR1c2VyMl9hcHBfMSIsImV4cCI6MTUzOTc2NzkxNX0.foxbo6C30yr_wkF-5EkgtYUMG-4SXNfRsmewdT6MbE-"
+-		"RXVkIPkVk8kDP41yRXmnk4OxburCqawiGlzzEhfHoFf0qv0qZEmwEXSdcyRw-czZTs6ACjWYe8kejOCVmpvUrq01NgOhTwgVg6pv93BlcmNY--"
+-		"zytjx_9hlVm5SS1lZ0I21n45BIWu5JvBD51TZXEURb_XhL7RcF9I8mfzrRpB2fSHW38gj-nogsdOPA_y3S-hJKylmmaqmaQgTF-jP-"
+-		"gYr6eqKyGPVwc6fLZ5zqAup59SefdPEY23-WWmHzj968jlsDSEiCp_YiYTnF3tHVLFWDsrprYKwNb0_p95tBmPA";
++	std::string pem_priv_key = R"(-----BEGIN PRIVATE KEY-----
++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
+++grQSrtFfSnickR6i3XrDlspd/khcQ==
++-----END PRIVATE KEY-----)";
++
++	// https://stackoverflow.com/a/30138974
++	unsigned char nonce[24];
++	RAND_bytes(nonce, sizeof(nonce));
++	std::string jti =
++		jwt::base::encode<jwt::alphabet::base64url>(std::string{reinterpret_cast<const char*>(nonce), sizeof(nonce)});
++
++	std::string token = jwt::create()
++							.set_issuer("auth0")
++							.set_type("JWT")
++							.set_id(jti)
++							.set_key_id("internal-gateway-jwt.api.sc.net")
++							.set_subject("jwt-cpp.example.localhost")
++							.set_issued_at(std::chrono::system_clock::now())
++							.set_expires_at(std::chrono::system_clock::now() + std::chrono::seconds{36000})
++							.set_payload_claim("sample", jwt::claim(std::string{"test"}))
++							.sign(jwt::algorithm::rs256("", pem_priv_key, "", ""));
+ 
+ 	auto decoded_jwt = jwt::decode(token);
+ 	auto jwks = jwt::parse_jwks(raw_jwks);
+@@ -46,12 +105,28 @@ int main() {
+ 	auto x5c = jwk.get_x5c_key_value();
+ 
+ 	if (!x5c.empty() && !issuer.empty()) {
++		std::cout << "Verifying with 'x5c' key" << std::endl;
+ 		auto verifier =
+ 			jwt::verify()
+ 				.allow_algorithm(jwt::algorithm::rs256(jwt::helper::convert_base64_der_to_pem(x5c), "", "", ""))
+ 				.with_issuer(issuer)
++				.with_id(jti)
+ 				.leeway(60UL); // value in seconds, add some to compensate timeout
+ 
+ 		verifier.verify(decoded_jwt);
+ 	}
++	// else if the optional 'x5c' was not present
++	{
++		std::cout << "Verifying with RSA components" << std::endl;
++		const auto modulus = jwk.get_jwk_claim("n").as_string();
++		const auto exponent = jwk.get_jwk_claim("e").as_string();
++		auto verifier = jwt::verify()
++							.allow_algorithm(jwt::algorithm::rs256(
++								jwt::helper::create_public_key_from_rsa_components(modulus, exponent)))
++							.with_issuer(issuer)
++							.with_id(jti)
++							.leeway(60UL); // value in seconds, add some to compensate timeout
++
++		verifier.verify(decoded_jwt);
++	}
+ }
+diff --git a/example/traits/CMakeLists.txt b/example/traits/CMakeLists.txt
+index 42f88d5..4734fab 100644
+--- a/example/traits/CMakeLists.txt
++++ b/example/traits/CMakeLists.txt
+@@ -28,3 +28,9 @@ if(TARGET kazuho_picojson)
+   add_executable(kazuho-picojson kazuho-picojson.cpp)
+   target_link_libraries(kazuho-picojson jwt-cpp::jwt-cpp kazuho_picojson)
+ endif()
++
++find_package(jsoncpp CONFIG)
++if(TARGET jsoncpp_static)
++  add_executable(open-source-parsers-jsoncpp open-source-parsers-jsoncpp.cpp)
++  target_link_libraries(open-source-parsers-jsoncpp jsoncpp_static jwt-cpp::jwt-cpp)
++endif()
+diff --git a/example/traits/open-source-parsers-jsoncpp.cpp b/example/traits/open-source-parsers-jsoncpp.cpp
+new file mode 100644
+index 0000000..8936691
+--- /dev/null
++++ b/example/traits/open-source-parsers-jsoncpp.cpp
+@@ -0,0 +1,47 @@
++#include "jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h"
++
++#include <iostream>
++#include <sstream>
++
++int main() {
++	using sec = std::chrono::seconds;
++	using min = std::chrono::minutes;
++	using traits = jwt::traits::open_source_parsers_jsoncpp;
++	using claim = jwt::basic_claim<traits>;
++
++	claim from_raw_json;
++	std::istringstream iss{R"##({"api":{"array":[1,2,3],"null":null}})##"};
++	iss >> from_raw_json;
++
++	claim::set_t list{"once", "twice"};
++	std::vector<int64_t> big_numbers{727663072ULL, 770979831ULL, 427239169ULL, 525936436ULL};
++
++	const auto time = jwt::date::clock::now();
++	const auto token = jwt::create<traits>()
++						   .set_type("JWT")
++						   .set_issuer("auth.mydomain.io")
++						   .set_audience("mydomain.io")
++						   .set_issued_at(time)
++						   .set_not_before(time)
++						   .set_expires_at(time + min{2} + sec{15})
++						   .set_payload_claim("boolean", true)
++						   .set_payload_claim("integer", 12345)
++						   .set_payload_claim("precision", 12.3456789)
++						   .set_payload_claim("strings", claim(list))
++						   .set_payload_claim("array", {big_numbers.begin(), big_numbers.end()})
++						   .set_payload_claim("object", from_raw_json)
++						   .sign(jwt::algorithm::none{});
++	const auto decoded = jwt::decode<traits>(token);
++
++	const auto array = traits::as_array(decoded.get_payload_claim("object").to_json()["api"]["array"]);
++	std::cout << "payload /object/api/array = " << array << std::endl;
++
++	jwt::verify<traits>()
++		.allow_algorithm(jwt::algorithm::none{})
++		.with_issuer("auth.mydomain.io")
++		.with_audience("mydomain.io")
++		.with_claim("object", from_raw_json)
++		.verify(decoded);
++
++	return 0;
++}
+diff --git a/include/jwt-cpp/jwt.h b/include/jwt-cpp/jwt.h
+index b2b998a..fe3fd10 100644
+--- a/include/jwt-cpp/jwt.h
++++ b/include/jwt-cpp/jwt.h
+@@ -51,6 +51,7 @@
+ 
+ #if OPENSSL_VERSION_NUMBER >= 0x30000000L // 3.0.0
+ #define JWT_OPENSSL_3_0
++#include <openssl/param_build.h>
+ #elif OPENSSL_VERSION_NUMBER >= 0x10101000L // 1.1.1
+ #define JWT_OPENSSL_1_1_1
+ #elif OPENSSL_VERSION_NUMBER >= 0x10100000L // 1.1.0
+@@ -120,7 +121,9 @@ namespace jwt {
+ 			load_key_bio_write,
+ 			load_key_bio_read,
+ 			create_mem_bio_failed,
+-			no_key_provided
++			no_key_provided,
++			set_rsa_failed,
++			create_context_failed
+ 		};
+ 		/**
+ 		 * \brief Error category for RSA errors
+@@ -141,6 +144,8 @@ namespace jwt {
+ 					case rsa_error::load_key_bio_read: return "failed to load key: bio read failed";
+ 					case rsa_error::create_mem_bio_failed: return "failed to create memory bio";
+ 					case rsa_error::no_key_provided: return "at least one of public or private key need to be present";
++					case rsa_error::set_rsa_failed: return "set modulus and exponent to RSA failed";
++					case rsa_error::create_context_failed: return "failed to create context";
+ 					default: return "unknown RSA error";
+ 					}
+ 				}
+@@ -161,7 +166,13 @@ namespace jwt {
+ 			no_key_provided,
+ 			invalid_key_size,
+ 			invalid_key,
+-			create_context_failed
++			create_context_failed,
++			cert_load_failed,
++			get_key_failed,
++			write_key_failed,
++			write_cert_failed,
++			convert_to_pem_failed,
++
+ 		};
+ 		/**
+ 		 * \brief Error category for ECDSA errors
+@@ -181,6 +192,11 @@ namespace jwt {
+ 					case ecdsa_error::invalid_key_size: return "invalid key size";
+ 					case ecdsa_error::invalid_key: return "invalid key";
+ 					case ecdsa_error::create_context_failed: return "failed to create context";
++					case ecdsa_error::cert_load_failed: return "error loading cert into memory";
++					case ecdsa_error::get_key_failed: return "error getting key from certificate";
++					case ecdsa_error::write_key_failed: return "error writing key data in PEM format";
++					case ecdsa_error::write_cert_failed: return "error writing cert data in PEM format";
++					case ecdsa_error::convert_to_pem_failed: return "failed to convert key to pem";
+ 					default: return "unknown ECDSA error";
+ 					}
+ 				}
+@@ -480,6 +496,17 @@ namespace jwt {
+ 			);
+ 		}
+ 
++		template<typename error_category = error::rsa_error>
++		std::string write_bio_to_string(std::unique_ptr<BIO, decltype(&BIO_free_all)>& bio_out, std::error_code& ec) {
++			char* ptr = nullptr;
++			auto len = BIO_get_mem_data(bio_out.get(), &ptr);
++			if (len <= 0 || ptr == nullptr) {
++				ec = error_category::convert_to_pem_failed;
++				return {};
++			}
++			return {ptr, static_cast<size_t>(len)};
++		}
++
+ 		inline std::unique_ptr<EVP_MD_CTX, void (*)(EVP_MD_CTX*)> make_evp_md_ctx() {
+ 			return
+ #ifdef JWT_OPENSSL_1_0_0
+@@ -492,54 +519,52 @@ namespace jwt {
+ 		/**
+ 		 * \brief Extract the public key of a pem certificate
+ 		 *
+-		 * \param certstr	String containing the certificate encoded as pem
+-		 * \param pw		Password used to decrypt certificate (leave empty if not encrypted)
+-		 * \param ec		error_code for error_detection (gets cleared if no error occurred)
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
++		 * \param certstr			String containing the certificate encoded as pem
++		 * \param pw				Password used to decrypt certificate (leave empty if not encrypted)
++		 * \param ec				error_code for error_detection (gets cleared if no error occurred)
+ 		 */
+-		inline std::string extract_pubkey_from_cert(const std::string& certstr, const std::string& pw,
+-													std::error_code& ec) {
++		template<typename error_category = error::rsa_error>
++		std::string extract_pubkey_from_cert(const std::string& certstr, const std::string& pw, std::error_code& ec) {
+ 			ec.clear();
+ 			auto certbio = make_mem_buf_bio(certstr);
+ 			auto keybio = make_mem_buf_bio();
+ 			if (!certbio || !keybio) {
+-				ec = error::rsa_error::create_mem_bio_failed;
++				ec = error_category::create_mem_bio_failed;
+ 				return {};
+ 			}
+ 
+ 			std::unique_ptr<X509, decltype(&X509_free)> cert(
+ 				PEM_read_bio_X509(certbio.get(), nullptr, nullptr, const_cast<char*>(pw.c_str())), X509_free);
+ 			if (!cert) {
+-				ec = error::rsa_error::cert_load_failed;
++				ec = error_category::cert_load_failed;
+ 				return {};
+ 			}
+ 			std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> key(X509_get_pubkey(cert.get()), EVP_PKEY_free);
+ 			if (!key) {
+-				ec = error::rsa_error::get_key_failed;
++				ec = error_category::get_key_failed;
+ 				return {};
+ 			}
+ 			if (PEM_write_bio_PUBKEY(keybio.get(), key.get()) == 0) {
+-				ec = error::rsa_error::write_key_failed;
+-				return {};
+-			}
+-			char* ptr = nullptr;
+-			auto len = BIO_get_mem_data(keybio.get(), &ptr);
+-			if (len <= 0 || ptr == nullptr) {
+-				ec = error::rsa_error::convert_to_pem_failed;
++				ec = error_category::write_key_failed;
+ 				return {};
+ 			}
+-			return {ptr, static_cast<size_t>(len)};
++
++			return write_bio_to_string<error_category>(keybio, ec);
+ 		}
+ 
+ 		/**
+ 		 * \brief Extract the public key of a pem certificate
+ 		 *
+-		 * \param certstr	String containing the certificate encoded as pem
+-		 * \param pw		Password used to decrypt certificate (leave empty if not encrypted)
+-		 * \throw			rsa_exception if an error occurred
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
++		 * \param certstr			String containing the certificate encoded as pem
++		 * \param pw				Password used to decrypt certificate (leave empty if not encrypted)
++		 * \throw					templated error_category's type exception if an error occurred
+ 		 */
+-		inline std::string extract_pubkey_from_cert(const std::string& certstr, const std::string& pw = "") {
++		template<typename error_category = error::rsa_error>
++		std::string extract_pubkey_from_cert(const std::string& certstr, const std::string& pw = "") {
+ 			std::error_code ec;
+-			auto res = extract_pubkey_from_cert(certstr, pw, ec);
++			auto res = extract_pubkey_from_cert<error_category>(certstr, pw, ec);
+ 			error::throw_if_error(ec);
+ 			return res;
+ 		}
+@@ -568,14 +593,7 @@ namespace jwt {
+ 				return {};
+ 			}
+ 
+-			char* ptr = nullptr;
+-			const auto len = BIO_get_mem_data(certbio.get(), &ptr);
+-			if (len <= 0 || ptr == nullptr) {
+-				ec = error::rsa_error::convert_to_pem_failed;
+-				return {};
+-			}
+-
+-			return {ptr, static_cast<size_t>(len)};
++			return write_bio_to_string(certbio, ec);
+ 		}
+ 
+ 		/**
+@@ -584,7 +602,7 @@ namespace jwt {
+ 		 * This is useful when using with JWKs as x5c claim is encoded as base64 DER. More info
+ 		 * (here)[https://tools.ietf.org/html/rfc7517#section-4.7]
+ 		 *
+-		 * \tparam Decode is callabled, taking a string_type and returns a string_type.
++		 * \tparam Decode is callable, taking a string_type and returns a string_type.
+ 		 * It should ensure the padding of the input and then base64 decode and return
+ 		 * the results.
+ 		 *
+@@ -606,7 +624,7 @@ namespace jwt {
+ 		 * This is useful when using with JWKs as x5c claim is encoded as base64 DER. More info
+ 		 * (here)[https://tools.ietf.org/html/rfc7517#section-4.7]
+ 		 *
+-		 * \tparam Decode is callabled, taking a string_type and returns a string_type.
++		 * \tparam Decode is callable, taking a string_type and returns a string_type.
+ 		 * It should ensure the padding of the input and then base64 decode and return
+ 		 * the results.
+ 		 *
+@@ -626,7 +644,6 @@ namespace jwt {
+ 		 * \brief Convert the certificate provided as DER to PEM.
+ 		 *
+ 		 * \param cert_der_str 	String containing the DER certificate
+-		 * \param decode 		The function to decode the cert
+ 		 * \throw				rsa_exception if an error occurred
+ 		 */
+ 		inline std::string convert_der_to_pem(const std::string& cert_der_str) {
+@@ -674,30 +691,32 @@ namespace jwt {
+ 		 *
+ 		 * The string should contain a pem encoded certificate or public key
+ 		 *
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
+ 		 * \param key		String containing the certificate encoded as pem
+ 		 * \param password	Password used to decrypt certificate (leave empty if not encrypted)
+ 		 * \param ec		error_code for error_detection (gets cleared if no error occurs)
+ 		 */
+-		inline evp_pkey_handle load_public_key_from_string(const std::string& key, const std::string& password,
+-														   std::error_code& ec) {
++		template<typename error_category = error::rsa_error>
++		evp_pkey_handle load_public_key_from_string(const std::string& key, const std::string& password,
++													std::error_code& ec) {
+ 			ec.clear();
+ 			auto pubkey_bio = make_mem_buf_bio();
+ 			if (!pubkey_bio) {
+-				ec = error::rsa_error::create_mem_bio_failed;
++				ec = error_category::create_mem_bio_failed;
+ 				return {};
+ 			}
+ 			if (key.substr(0, 27) == "-----BEGIN CERTIFICATE-----") {
+-				auto epkey = helper::extract_pubkey_from_cert(key, password, ec);
++				auto epkey = helper::extract_pubkey_from_cert<error_category>(key, password, ec);
+ 				if (ec) return {};
+ 				const int len = static_cast<int>(epkey.size());
+ 				if (BIO_write(pubkey_bio.get(), epkey.data(), len) != len) {
+-					ec = error::rsa_error::load_key_bio_write;
++					ec = error_category::load_key_bio_write;
+ 					return {};
+ 				}
+ 			} else {
+ 				const int len = static_cast<int>(key.size());
+ 				if (BIO_write(pubkey_bio.get(), key.data(), len) != len) {
+-					ec = error::rsa_error::load_key_bio_write;
++					ec = error_category::load_key_bio_write;
+ 					return {};
+ 				}
+ 			}
+@@ -705,7 +724,7 @@ namespace jwt {
+ 			evp_pkey_handle pkey(PEM_read_bio_PUBKEY(
+ 				pubkey_bio.get(), nullptr, nullptr,
+ 				(void*)password.data())); // NOLINT(google-readability-casting) requires `const_cast`
+-			if (!pkey) ec = error::rsa_error::load_key_bio_read;
++			if (!pkey) ec = error_category::load_key_bio_read;
+ 			return pkey;
+ 		}
+ 
+@@ -714,13 +733,15 @@ namespace jwt {
+ 		 *
+ 		 * The string should contain a pem encoded certificate or public key
+ 		 *
+-		 * \param key		String containing the certificate or key encoded as pem
+-		 * \param password	Password used to decrypt certificate or key (leave empty if not encrypted)
+-		 * \throw			rsa_exception if an error occurred
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
++		 * \param key				String containing the certificate encoded as pem
++		 * \param password			Password used to decrypt certificate (leave empty if not encrypted)
++		 * \throw					Templated error_category's type exception if an error occurred
+ 		 */
++		template<typename error_category = error::rsa_error>
+ 		inline evp_pkey_handle load_public_key_from_string(const std::string& key, const std::string& password = "") {
+ 			std::error_code ec;
+-			auto res = load_public_key_from_string(key, password, ec);
++			auto res = load_public_key_from_string<error_category>(key, password, ec);
+ 			error::throw_if_error(ec);
+ 			return res;
+ 		}
+@@ -728,38 +749,43 @@ namespace jwt {
+ 		/**
+ 		 * \brief Load a private key from a string.
+ 		 *
+-		 * \param key		String containing a private key as pem
+-		 * \param password	Password used to decrypt key (leave empty if not encrypted)
+-		 * \param ec		error_code for error_detection (gets cleared if no error occurs)
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
++		 * \param key				String containing a private key as pem
++		 * \param password			Password used to decrypt key (leave empty if not encrypted)
++		 * \param ec				error_code for error_detection (gets cleared if no error occurs)
+ 		 */
++		template<typename error_category = error::rsa_error>
+ 		inline evp_pkey_handle load_private_key_from_string(const std::string& key, const std::string& password,
+ 															std::error_code& ec) {
+-			auto privkey_bio = make_mem_buf_bio();
+-			if (!privkey_bio) {
+-				ec = error::rsa_error::create_mem_bio_failed;
++			ec.clear();
++			auto private_key_bio = make_mem_buf_bio();
++			if (!private_key_bio) {
++				ec = error_category::create_mem_bio_failed;
+ 				return {};
+ 			}
+ 			const int len = static_cast<int>(key.size());
+-			if (BIO_write(privkey_bio.get(), key.data(), len) != len) {
+-				ec = error::rsa_error::load_key_bio_write;
++			if (BIO_write(private_key_bio.get(), key.data(), len) != len) {
++				ec = error_category::load_key_bio_write;
+ 				return {};
+ 			}
+ 			evp_pkey_handle pkey(
+-				PEM_read_bio_PrivateKey(privkey_bio.get(), nullptr, nullptr, const_cast<char*>(password.c_str())));
+-			if (!pkey) ec = error::rsa_error::load_key_bio_read;
++				PEM_read_bio_PrivateKey(private_key_bio.get(), nullptr, nullptr, const_cast<char*>(password.c_str())));
++			if (!pkey) ec = error_category::load_key_bio_read;
+ 			return pkey;
+ 		}
+ 
+ 		/**
+ 		 * \brief Load a private key from a string.
+ 		 *
+-		 * \param key		String containing a private key as pem
+-		 * \param password	Password used to decrypt key (leave empty if not encrypted)
+-		 * \throw			rsa_exception if an error occurred
++		 * \tparam error_category	jwt::error enum category to match with the keys being used
++		 * \param key				String containing a private key as pem
++		 * \param password			Password used to decrypt key (leave empty if not encrypted)
++		 * \throw					Templated error_category's type exception if an error occurred
+ 		 */
++		template<typename error_category = error::rsa_error>
+ 		inline evp_pkey_handle load_private_key_from_string(const std::string& key, const std::string& password = "") {
+ 			std::error_code ec;
+-			auto res = load_private_key_from_string(key, password, ec);
++			auto res = load_private_key_from_string<error_category>(key, password, ec);
+ 			error::throw_if_error(ec);
+ 			return res;
+ 		}
+@@ -768,6 +794,8 @@ namespace jwt {
+ 		 * \brief Load a public key from a string.
+ 		 *
+ 		 * The string should contain a pem encoded certificate or public key
++		 * 
++		 * \deprecated Use the templated version load_private_key_from_string with error::ecdsa_error
+ 		 *
+ 		 * \param key		String containing the certificate encoded as pem
+ 		 * \param password	Password used to decrypt certificate (leave empty if not encrypted)
+@@ -775,33 +803,53 @@ namespace jwt {
+ 		 */
+ 		inline evp_pkey_handle load_public_ec_key_from_string(const std::string& key, const std::string& password,
+ 															  std::error_code& ec) {
+-			ec.clear();
+-			auto pubkey_bio = make_mem_buf_bio();
+-			if (!pubkey_bio) {
+-				ec = error::ecdsa_error::create_mem_bio_failed;
+-				return {};
+-			}
+-			if (key.substr(0, 27) == "-----BEGIN CERTIFICATE-----") {
+-				auto epkey = helper::extract_pubkey_from_cert(key, password, ec);
+-				if (ec) return {};
+-				const int len = static_cast<int>(epkey.size());
+-				if (BIO_write(pubkey_bio.get(), epkey.data(), len) != len) {
+-					ec = error::ecdsa_error::load_key_bio_write;
+-					return {};
+-				}
+-			} else {
+-				const int len = static_cast<int>(key.size());
+-				if (BIO_write(pubkey_bio.get(), key.data(), len) != len) {
+-					ec = error::ecdsa_error::load_key_bio_write;
+-					return {};
+-				}
+-			}
++			return load_public_key_from_string<error::ecdsa_error>(key, password, ec);
++		}
+ 
+-			evp_pkey_handle pkey(PEM_read_bio_PUBKEY(
+-				pubkey_bio.get(), nullptr, nullptr,
+-				(void*)password.data())); // NOLINT(google-readability-casting) requires `const_cast`
+-			if (!pkey) ec = error::ecdsa_error::load_key_bio_read;
+-			return pkey;
++		/**
++		 * Convert a OpenSSL BIGNUM to a std::string
++		 * \param bn BIGNUM to convert
++		 * \return bignum as string
++		 */
++		inline
++#ifdef JWT_OPENSSL_1_0_0
++			std::string
++			bn2raw(BIGNUM* bn)
++#else
++			std::string
++			bn2raw(const BIGNUM* bn)
++#endif
++		{
++			std::string res(BN_num_bytes(bn), '\0');
++			BN_bn2bin(bn, (unsigned char*)res.data()); // NOLINT(google-readability-casting) requires `const_cast`
++			return res;
++		}
++		/**
++		 * Convert an std::string to a OpenSSL BIGNUM
++		 * \param raw String to convert
++		 * \param ec  error_code for error_detection (gets cleared if no error occurs)
++		 * \return BIGNUM representation
++		 */
++		inline std::unique_ptr<BIGNUM, decltype(&BN_free)> raw2bn(const std::string& raw, std::error_code& ec) {
++			auto bn =
++				BN_bin2bn(reinterpret_cast<const unsigned char*>(raw.data()), static_cast<int>(raw.size()), nullptr);
++			// https://www.openssl.org/docs/man1.1.1/man3/BN_bin2bn.html#RETURN-VALUES
++			if (!bn) {
++				ec = error::rsa_error::set_rsa_failed;
++				return {nullptr, BN_free};
++			}
++			return {bn, BN_free};
++		}
++		/**
++		 * Convert an std::string to a OpenSSL BIGNUM
++		 * \param raw String to convert
++		 * \return BIGNUM representation
++		 */
++		inline std::unique_ptr<BIGNUM, decltype(&BN_free)> raw2bn(const std::string& raw) {
++			std::error_code ec;
++			auto res = raw2bn(raw, ec);
++			error::throw_if_error(ec);
++			return res;
+ 		}
+ 
+ 		/**
+@@ -809,6 +857,8 @@ namespace jwt {
+ 		 *
+ 		 * The string should contain a pem encoded certificate or public key
+ 		 *
++		 * \deprecated Use the templated version load_private_key_from_string with error::ecdsa_error
++		 * 
+ 		 * \param key		String containing the certificate or key encoded as pem
+ 		 * \param password	Password used to decrypt certificate or key (leave empty if not encrypted)
+ 		 * \throw			ecdsa_exception if an error occurred
+@@ -816,13 +866,15 @@ namespace jwt {
+ 		inline evp_pkey_handle load_public_ec_key_from_string(const std::string& key,
+ 															  const std::string& password = "") {
+ 			std::error_code ec;
+-			auto res = load_public_ec_key_from_string(key, password, ec);
++			auto res = load_public_key_from_string<error::ecdsa_error>(key, password, ec);
+ 			error::throw_if_error(ec);
+ 			return res;
+ 		}
+ 
+ 		/**
+ 		 * \brief Load a private key from a string.
++		 * 
++		 * \deprecated Use the templated version load_private_key_from_string with error::ecdsa_error
+ 		 *
+ 		 * \param key		String containing a private key as pem
+ 		 * \param password	Password used to decrypt key (leave empty if not encrypted)
+@@ -830,25 +882,189 @@ namespace jwt {
+ 		 */
+ 		inline evp_pkey_handle load_private_ec_key_from_string(const std::string& key, const std::string& password,
+ 															   std::error_code& ec) {
+-			auto privkey_bio = make_mem_buf_bio();
+-			if (!privkey_bio) {
+-				ec = error::ecdsa_error::create_mem_bio_failed;
++			return load_private_key_from_string<error::ecdsa_error>(key, password, ec);
++		}
++
++		/**
++		* \brief create public key from modulus and exponent. This is defined in
++		* [RFC 7518 Section 6.3](https://www.rfc-editor.org/rfc/rfc7518#section-6.3)
++		* Using the required "n" (Modulus) Parameter and "e" (Exponent) Parameter.
++		*
++		 * \tparam Decode is callable, taking a string_type and returns a string_type.
++		 * It should ensure the padding of the input and then base64url decode and
++		 * return the results.
++		* \param modulus	string containing base64url encoded modulus
++		* \param exponent	string containing base64url encoded exponent
++		* \param decode 	The function to decode the RSA parameters
++		* \param ec			error_code for error_detection (gets cleared if no error occur
++		* \return 			public key in PEM format
++		*/
++		template<typename Decode>
++		std::string create_public_key_from_rsa_components(const std::string& modulus, const std::string& exponent,
++														  Decode decode, std::error_code& ec) {
++			ec.clear();
++			auto decoded_modulus = decode(modulus);
++			auto decoded_exponent = decode(exponent);
++
++			auto n = helper::raw2bn(decoded_modulus, ec);
++			if (ec) return {};
++			auto e = helper::raw2bn(decoded_exponent, ec);
++			if (ec) return {};
++
++#if defined(JWT_OPENSSL_3_0)
++			// OpenSSL deprecated mutable keys and there is a new way for making them
++			// https://mta.openssl.org/pipermail/openssl-users/2021-July/013994.html
++			// https://www.openssl.org/docs/man3.1/man3/OSSL_PARAM_BLD_new.html#Example-2
++			std::unique_ptr<OSSL_PARAM_BLD, decltype(&OSSL_PARAM_BLD_free)> param_bld(OSSL_PARAM_BLD_new(),
++																					  OSSL_PARAM_BLD_free);
++			if (!param_bld) {
++				ec = error::rsa_error::create_context_failed;
+ 				return {};
+ 			}
+-			const int len = static_cast<int>(key.size());
+-			if (BIO_write(privkey_bio.get(), key.data(), len) != len) {
+-				ec = error::ecdsa_error::load_key_bio_write;
++
++			if (OSSL_PARAM_BLD_push_BN(param_bld.get(), "n", n.get()) != 1 ||
++				OSSL_PARAM_BLD_push_BN(param_bld.get(), "e", e.get()) != 1) {
++				ec = error::rsa_error::set_rsa_failed;
+ 				return {};
+ 			}
+-			evp_pkey_handle pkey(
+-				PEM_read_bio_PrivateKey(privkey_bio.get(), nullptr, nullptr, const_cast<char*>(password.c_str())));
+-			if (!pkey) ec = error::ecdsa_error::load_key_bio_read;
+-			return pkey;
++
++			std::unique_ptr<OSSL_PARAM, decltype(&OSSL_PARAM_free)> params(OSSL_PARAM_BLD_to_param(param_bld.get()),
++																		   OSSL_PARAM_free);
++			if (!params) {
++				ec = error::rsa_error::set_rsa_failed;
++				return {};
++			}
++
++			std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)> ctx(
++				EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr), EVP_PKEY_CTX_free);
++			if (!ctx) {
++				ec = error::rsa_error::create_context_failed;
++				return {};
++			}
++
++			// https://www.openssl.org/docs/man3.0/man3/EVP_PKEY_fromdata.html#EXAMPLES
++			// Error codes based on https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_fromdata_init.html#RETURN-VALUES
++			EVP_PKEY* pkey = NULL;
++			if (EVP_PKEY_fromdata_init(ctx.get()) <= 0 ||
++				EVP_PKEY_fromdata(ctx.get(), &pkey, EVP_PKEY_KEYPAIR, params.get()) <= 0) {
++				// It's unclear if this can fail after allocating but free it anyways
++				// https://www.openssl.org/docs/man3.0/man3/EVP_PKEY_fromdata.html
++				EVP_PKEY_free(pkey);
++
++				ec = error::rsa_error::cert_load_failed;
++				return {};
++			}
++
++			// Transfer ownership so we get ref counter and cleanup
++			evp_pkey_handle rsa(pkey);
++
++#else
++			std::unique_ptr<RSA, decltype(&RSA_free)> rsa(RSA_new(), RSA_free);
++
++#if defined(JWT_OPENSSL_1_1_1) || defined(JWT_OPENSSL_1_1_0)
++			// After this RSA_free will also free the n and e big numbers
++			// See https://github.com/Thalhammer/jwt-cpp/pull/298#discussion_r1282619186
++			if (RSA_set0_key(rsa.get(), n.get(), e.get(), nullptr) == 1) {
++				// This can only fail we passed in NULL for `n` or `e`
++				// https://github.com/openssl/openssl/blob/d6e4056805f54bb1a0ef41fa3a6a35b70c94edba/crypto/rsa/rsa_lib.c#L396
++				// So to make sure there is no memory leak, we hold the references
++				n.release();
++				e.release();
++			} else {
++				ec = error::rsa_error::set_rsa_failed;
++				return {};
++			}
++#elif defined(JWT_OPENSSL_1_0_0)
++			rsa->e = e.release();
++			rsa->n = n.release();
++			rsa->d = nullptr;
++#endif
++#endif
++
++			auto pub_key_bio = make_mem_buf_bio();
++			if (!pub_key_bio) {
++				ec = error::rsa_error::create_mem_bio_failed;
++				return {};
++			}
++
++			auto write_pem_to_bio =
++#if defined(JWT_OPENSSL_3_0)
++				// https://www.openssl.org/docs/man3.1/man3/PEM_write_bio_RSA_PUBKEY.html
++				&PEM_write_bio_PUBKEY;
++#else
++				&PEM_write_bio_RSA_PUBKEY;
++#endif
++			if (write_pem_to_bio(pub_key_bio.get(), rsa.get()) != 1) {
++				ec = error::rsa_error::load_key_bio_write;
++				return {};
++			}
++
++			return write_bio_to_string<error::rsa_error>(pub_key_bio, ec);
+ 		}
+ 
++		/**
++		* Create public key from modulus and exponent. This is defined in
++		* [RFC 7518 Section 6.3](https://www.rfc-editor.org/rfc/rfc7518#section-6.3)
++		* Using the required "n" (Modulus) Parameter and "e" (Exponent) Parameter.
++		*
++		 * \tparam Decode is callable, taking a string_type and returns a string_type.
++		 * It should ensure the padding of the input and then base64url decode and
++		 * return the results.
++		* \param modulus	string containing base64url encoded modulus
++		* \param exponent	string containing base64url encoded exponent
++		* \param decode 	The function to decode the RSA parameters
++		* \return public key in PEM format
++		*/
++		template<typename Decode>
++		std::string create_public_key_from_rsa_components(const std::string& modulus, const std::string& exponent,
++														  Decode decode) {
++			std::error_code ec;
++			auto res = create_public_key_from_rsa_components(modulus, exponent, decode, ec);
++			error::throw_if_error(ec);
++			return res;
++		}
++
++#ifndef JWT_DISABLE_BASE64
++		/**
++		* Create public key from modulus and exponent. This is defined in
++		* [RFC 7518 Section 6.3](https://www.rfc-editor.org/rfc/rfc7518#section-6.3)
++		* Using the required "n" (Modulus) Parameter and "e" (Exponent) Parameter.
++		*
++		* \param modulus	string containing base64 encoded modulus
++		* \param exponent	string containing base64 encoded exponent
++		* \param ec			error_code for error_detection (gets cleared if no error occur
++		* \return public key in PEM format
++		*/
++		inline std::string create_public_key_from_rsa_components(const std::string& modulus,
++																 const std::string& exponent, std::error_code& ec) {
++			auto decode = [](const std::string& token) {
++				return base::decode<alphabet::base64url>(base::pad<alphabet::base64url>(token));
++			};
++			return create_public_key_from_rsa_components(modulus, exponent, std::move(decode), ec);
++		}
++		/**
++		* Create public key from modulus and exponent. This is defined in
++		* [RFC 7518 Section 6.3](https://www.rfc-editor.org/rfc/rfc7518#section-6.3)
++		* Using the required "n" (Modulus) Parameter and "e" (Exponent) Parameter.
++		*
++		* \param modulus	string containing base64url encoded modulus
++		* \param exponent	string containing base64url encoded exponent
++		* \return public key in PEM format
++		*/
++		inline std::string create_public_key_from_rsa_components(const std::string& modulus,
++																 const std::string& exponent) {
++			std::error_code ec;
++			auto res = create_public_key_from_rsa_components(modulus, exponent, ec);
++			error::throw_if_error(ec);
++			return res;
++		}
++#endif
++
+ 		/**
+ 		 * \brief Load a private key from a string.
+ 		 *
++		 * \deprecated Use the templated version load_private_key_from_string with error::ecdsa_error
++		 * 
+ 		 * \param key		String containing a private key as pem
+ 		 * \param password	Password used to decrypt key (leave empty if not encrypted)
+ 		 * \throw			ecdsa_exception if an error occurred
+@@ -856,39 +1072,10 @@ namespace jwt {
+ 		inline evp_pkey_handle load_private_ec_key_from_string(const std::string& key,
+ 															   const std::string& password = "") {
+ 			std::error_code ec;
+-			auto res = load_private_ec_key_from_string(key, password, ec);
++			auto res = load_private_key_from_string<error::ecdsa_error>(key, password, ec);
+ 			error::throw_if_error(ec);
+ 			return res;
+ 		}
+-
+-		/**
+-		 * Convert a OpenSSL BIGNUM to a std::string
+-		 * \param bn BIGNUM to convert
+-		 * \return bignum as string
+-		 */
+-		inline
+-#ifdef JWT_OPENSSL_1_0_0
+-			std::string
+-			bn2raw(BIGNUM* bn)
+-#else
+-			std::string
+-			bn2raw(const BIGNUM* bn)
+-#endif
+-		{
+-			std::string res(BN_num_bytes(bn), '\0');
+-			BN_bn2bin(bn, (unsigned char*)res.data()); // NOLINT(google-readability-casting) requires `const_cast`
+-			return res;
+-		}
+-		/**
+-		 * Convert an std::string to a OpenSSL BIGNUM
+-		 * \param raw String to convert
+-		 * \return BIGNUM representation
+-		 */
+-		inline std::unique_ptr<BIGNUM, decltype(&BN_free)> raw2bn(const std::string& raw) {
+-			return std::unique_ptr<BIGNUM, decltype(&BN_free)>(
+-				BN_bin2bn(reinterpret_cast<const unsigned char*>(raw.data()), static_cast<int>(raw.size()), nullptr),
+-				BN_free);
+-		}
+ 	} // namespace helper
+ 
+ 	/**
+@@ -987,7 +1174,7 @@ namespace jwt {
+ 			std::string name() const { return alg_name; }
+ 
+ 		private:
+-			/// HMAC secrect
++			/// HMAC secret
+ 			const std::string secret;
+ 			/// HMAC hash generator
+ 			const EVP_MD* (*md)();
+@@ -1271,8 +1458,10 @@ namespace jwt {
+ 
+ 			std::string p1363_to_der_signature(const std::string& signature, std::error_code& ec) const {
+ 				ec.clear();
+-				auto r = helper::raw2bn(signature.substr(0, signature.size() / 2));
+-				auto s = helper::raw2bn(signature.substr(signature.size() / 2));
++				auto r = helper::raw2bn(signature.substr(0, signature.size() / 2), ec);
++				if (ec) return {};
++				auto s = helper::raw2bn(signature.substr(signature.size() / 2), ec);
++				if (ec) return {};
+ 
+ 				ECDSA_SIG* psig;
+ #ifdef JWT_OPENSSL_1_0_0
+@@ -2533,7 +2722,7 @@ namespace jwt {
+ 		/**
+ 		 * \brief Parses a given token
+ 		 *
+-		 * \tparam Decode is callabled, taking a string_type and returns a string_type.
++		 * \tparam Decode is callable, taking a string_type and returns a string_type.
+ 		 * It should ensure the padding of the input and then base64url decode and
+ 		 * return the results.
+ 		 * \param token The token to parse
+diff --git a/include/jwt-cpp/traits/open-source-parsers-jsoncpp/defaults.h b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/defaults.h
+new file mode 100644
+index 0000000..57dce49
+--- /dev/null
++++ b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/defaults.h
+@@ -0,0 +1,92 @@
++#ifndef JWT_CPP_OPEN_SOURCE_PARSERS_JSONCPP_DEFAULTS_H
++#define JWT_CPP_OPEN_SOURCE_PARSERS_JSONCPP_DEFAULTS_H
++
++#ifndef JWT_DISABLE_PICOJSON
++#define JWT_DISABLE_PICOJSON
++#endif
++
++#include "traits.h"
++
++namespace jwt {
++	/**
++	 * \brief a class to store a generic [jsoncpp](https://github.com/open-source-parsers/jsoncpp) value as claim
++	 *
++	 * This type is the specialization of the \ref basic_claim class which
++	 * uses the standard template types.
++	 */
++	using claim = basic_claim<traits::open_source_parsers_jsoncpp>;
++
++	/**
++	 * Create a verifier using the default clock
++	 * \return verifier instance
++	 */
++	inline verifier<default_clock, traits::open_source_parsers_jsoncpp> verify() {
++		return verify<default_clock, traits::open_source_parsers_jsoncpp>(default_clock{});
++	}
++
++	/**
++	 * Return a builder instance to create a new token
++	 */
++	inline builder<traits::open_source_parsers_jsoncpp> create() {
++		return builder<traits::open_source_parsers_jsoncpp>();
++	}
++
++#ifndef JWT_DISABLE_BASE64
++	/**
++	 * Decode a token
++	 * \param token Token to decode
++	 * \return Decoded token
++	 * \throw std::invalid_argument Token is not in correct format
++	 * \throw std::runtime_error Base64 decoding failed or invalid json
++	 */
++	inline decoded_jwt<traits::open_source_parsers_jsoncpp> decode(const std::string& token) {
++		return decoded_jwt<traits::open_source_parsers_jsoncpp>(token);
++	}
++#endif
++
++	/**
++	 * Decode a token
++	 * \tparam Decode is callabled, taking a string_type and returns a string_type.
++	 * It should ensure the padding of the input and then base64url decode and
++	 * return the results.
++	 * \param token Token to decode
++	 * \param decode The token to parse
++	 * \return Decoded token
++	 * \throw std::invalid_argument Token is not in correct format
++	 * \throw std::runtime_error Base64 decoding failed or invalid json
++	 */
++	template<typename Decode>
++	decoded_jwt<traits::open_source_parsers_jsoncpp> decode(const std::string& token, Decode decode) {
++		return decoded_jwt<traits::open_source_parsers_jsoncpp>(token, decode);
++	}
++
++	/**
++	 * Parse a jwk
++	 * \param token JWK Token to parse
++	 * \return Parsed JWK
++	 * \throw std::runtime_error Token is not in correct format
++	 */
++	inline jwk<traits::open_source_parsers_jsoncpp>
++	parse_jwk(const traits::open_source_parsers_jsoncpp::string_type& token) {
++		return jwk<traits::open_source_parsers_jsoncpp>(token);
++	}
++
++	/**
++	 * Parse a jwks
++	 * \param token JWKs Token to parse
++	 * \return Parsed JWKs
++	 * \throw std::runtime_error Token is not in correct format
++	 */
++	inline jwks<traits::open_source_parsers_jsoncpp>
++	parse_jwks(const traits::open_source_parsers_jsoncpp::string_type& token) {
++		return jwks<traits::open_source_parsers_jsoncpp>(token);
++	}
++
++	/**
++	 * This type is the specialization of the \ref verify_ops::verify_context class which
++	 * uses the standard template types.
++	 */
++	using verify_context = verify_ops::verify_context<traits::open_source_parsers_jsoncpp>;
++} // namespace jwt
++
++#endif // JWT_CPP_OPEN_SOURCE_PARSERS_JSONCPP_DEFAULTS_H
+diff --git a/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h
+new file mode 100644
+index 0000000..16f76f1
+--- /dev/null
++++ b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h
+@@ -0,0 +1,131 @@
++#ifndef JWT_CPP_JSONCPP_TRAITS_H
++#define JWT_CPP_JSONCPP_TRAITS_H
++
++#include "jwt-cpp/jwt.h"
++#include "json/json.h"
++
++namespace jwt {
++	namespace traits {
++		struct open_source_parsers_jsoncpp {
++			using value_type = Json::Value;
++			using string_type = std::string;
++			class array_type : public Json::Value {
++			public:
++				using value_type = Json::Value;
++
++				array_type() = default;
++				array_type(const array_type&) = default;
++				explicit array_type(const Json::Value& o) : Json::Value(o) {}
++				array_type(array_type&&) = default;
++				explicit array_type(Json::Value&& o) : Json::Value(o) {}
++				template<typename Iterator>
++				array_type(Iterator begin, Iterator end) {
++					for (Iterator it = begin; it != end; ++it) {
++						Json::Value value;
++						value = *it;
++						this->append(value);
++					}
++				}
++				~array_type() = default;
++				array_type& operator=(const array_type& o) = default;
++				array_type& operator=(array_type&& o) noexcept = default;
++			};
++			using number_type = double;
++			using integer_type = Json::Value::Int;
++			using boolean_type = bool;
++			class object_type : public Json::Value {
++			public:
++				using key_type = std::string;
++				using mapped_type = Json::Value;
++				using size_type = size_t;
++
++				object_type() = default;
++				object_type(const object_type&) = default;
++				explicit object_type(const Json::Value& o) : Json::Value(o) {}
++				object_type(object_type&&) = default;
++				explicit object_type(Json::Value&& o) : Json::Value(o) {}
++				~object_type() = default;
++				object_type& operator=(const object_type& o) = default;
++				object_type& operator=(object_type&& o) noexcept = default;
++
++				// Add missing C++11 element access
++				const mapped_type& at(const key_type& key) const {
++					Json::Value const* found = find(key.data(), key.data() + key.length());
++					if (!found) throw std::out_of_range("invalid key");
++					return *found;
++				}
++
++				size_type count(const key_type& key) const { return this->isMember(key) ? 1 : 0; }
++			};
++
++			// Translation between the implementation notion of type, to the jwt::json::type equivilant
++			static jwt::json::type get_type(const value_type& val) {
++				using jwt::json::type;
++
++				if (val.isArray())
++					return type::array;
++				else if (val.isString())
++					return type::string;
++				// Order is important https://github.com/Thalhammer/jwt-cpp/pull/320#issuecomment-1865322511
++				else if (val.isInt())
++					return type::integer;
++				else if (val.isNumeric())
++					return type::number;
++				else if (val.isBool())
++					return type::boolean;
++				else if (val.isObject())
++					return type::object;
++
++				throw std::logic_error("invalid type");
++			}
++
++			static integer_type as_integer(const value_type& val) {
++				switch (val.type()) {
++				case Json::intValue: return val.asInt64();
++				case Json::uintValue: return static_cast<integer_type>(val.asUInt64());
++				default: throw std::bad_cast();
++				}
++			}
++
++			static boolean_type as_boolean(const value_type& val) {
++				if (!val.isBool()) throw std::bad_cast();
++				return val.asBool();
++			}
++
++			static number_type as_number(const value_type& val) {
++				if (!val.isNumeric()) throw std::bad_cast();
++				return val.asDouble();
++			}
++
++			static string_type as_string(const value_type& val) {
++				if (!val.isString()) throw std::bad_cast();
++				return val.asString();
++			}
++
++			static object_type as_object(const value_type& val) {
++				if (!val.isObject()) throw std::bad_cast();
++				return object_type(val);
++			}
++
++			static array_type as_array(const value_type& val) {
++				if (!val.isArray()) throw std::bad_cast();
++				return array_type(val);
++			}
++
++			static bool parse(value_type& val, string_type str) {
++				Json::Reader reader;
++				return reader.parse(str, val);
++			}
++
++			static string_type serialize(const value_type& val) {
++				Json::StreamWriterBuilder builder;
++				builder["commentStyle"] = "None";
++				builder["indentation"] = "";
++				std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
++				return Json::writeString(builder, val);
++			}
++		};
++	} // namespace traits
++} // namespace jwt
++
++#endif
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index cb7eadd..c41809f 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -11,7 +11,17 @@ include(GoogleTest)
+ if(HUNTER_ENABLED)
+   hunter_add_package(GTest)
+ endif()
+-find_package(GTest REQUIRED)
++
++find_package(GTest)
++if(NOT TARGET GTest::gtest_main)
++  message(STATUS "jwt-cpp: using FetchContent for GTest")
++  include(FetchContent)
++  fetchcontent_declare(googletest
++                       URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip)
++  # https://google.github.io/googletest/quickstart-cmake.html
++  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
++  fetchcontent_makeavailable(googletest)
++endif()
+ 
+ set(TEST_SOURCES
+     ${CMAKE_CURRENT_SOURCE_DIR}/BaseTest.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ClaimTest.cpp
+@@ -30,11 +40,16 @@ if(TARGET boost_json)
+   list(APPEND TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/traits/BoostJsonTest.cpp)
+ endif()
+ 
++find_package(jsoncpp CONFIG)
++if(TARGET jsoncpp_static)
++  list(APPEND TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/traits/OspJsoncppTest.cpp)
++endif()
++
+ add_executable(jwt-cpp-test ${TEST_SOURCES})
+ 
+ # NOTE: Don't use space inside a generator expression here, because the function prematurely breaks the expression into
+ # multiple lines. https://cmake.org/pipermail/cmake/2018-April/067422.html
+-set(JWT_TESTER_GCC_FLAGS -Wall -Wextra -Wpedantic)
++set(JWT_TESTER_GCC_FLAGS -Wall -Wextra -Wpedantic -ggdb)
+ set(JWT_TESTER_CLANG_FLAGS -Weverything -Wno-c++98-compat -Wno-global-constructors -Wno-weak-vtables)
+ target_compile_options(
+   jwt-cpp-test PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/W4> $<$<CXX_COMPILER_ID:GNU>:${JWT_TESTER_GCC_FLAGS}>
+@@ -44,18 +59,22 @@ if(HUNTER_ENABLED)
+   # Define a compile define to bypass openssl error tests
+   target_compile_definitions(jwt-cpp-test PRIVATE HUNTER_ENABLED=1)
+ else()
+-  target_link_libraries(jwt-cpp-test PRIVATE GTest::GTest GTest::Main)
++  # https://github.com/google/googletest/blob/eb80f759d595874a5e905a3342bd8e2af4c0a12d/googletest/README.md?plain=1#L62-L64
++  target_link_libraries(jwt-cpp-test PRIVATE GTest::gtest_main)
+   if(TARGET jsoncons)
+     target_link_libraries(jwt-cpp-test PRIVATE jsoncons)
+   endif()
+   if(TARGET boost_json)
+     target_link_libraries(jwt-cpp-test PRIVATE boost_json)
+   endif()
++  if(TARGET jsoncpp_static)
++    target_link_libraries(jwt-cpp-test PRIVATE jsoncpp_static)
++  endif()
+ endif()
+ target_link_libraries(jwt-cpp-test PRIVATE jwt-cpp nlohmann_json::nlohmann_json
+                                            $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:${CMAKE_DL_LIBS}>)
+ 
+-gtest_add_tests(TARGET jwt-cpp-test)
++gtest_discover_tests(jwt-cpp-test)
+ 
+ if(JWT_ENABLE_COVERAGE)
+   include("code-coverage")
+diff --git a/tests/HelperTest.cpp b/tests/HelperTest.cpp
+index 558ca90..17ea7e3 100644
+--- a/tests/HelperTest.cpp
++++ b/tests/HelperTest.cpp
+@@ -24,6 +24,27 @@ TEST(HelperTest, DER2PemCert) {
+ 	ASSERT_EQ(google_cert, cert_pem);
+ }
+ 
++TEST(HelperTest, RsaFromComponents) {
++	const std::string public_key_expected =
++		R"(-----BEGIN PUBLIC KEY-----
++MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwoB3iVm4RW+6StkR+nut
++x1fQevu2+t0Fu6KBcbvhfyHSXy7w0nJOdTT4jWLjStpRkNQBPZwMwHH35i+21gdn
++JtDe/xfO8IX9McFmyodlBUcqX8CruIzDv9AXf2OjXPBG+4aq+03XKl5/muATl32+
+++301Vw1dXoGYNeoWQqLTsHT3WS3tOOf+ehuzNuZ+rj+ephaD3lMBToEArrtC9R91
++KTTN6YSAOK48NxTA8CfOMFK5itxfIqB5+E9OSQTidXyqLyoeA+xxTKMqYfxvypEe
++k1oueAhY9u67NCBdmuavxtfyvwp7+o6Sd+NsewxAhmRKFexw13KOYzDhC+9aMJcu
++JQIDAQAB
++-----END PUBLIC KEY-----
++)";
++	const std::string modulus =
++		R"(AMKAd4lZuEVvukrZEfp7rcdX0Hr7tvrdBbuigXG74X8h0l8u8NJyTnU0-I1i40raUZDUAT2cDMBx9-YvttYHZybQ3v8XzvCF_THBZsqHZQVHKl_Aq7iMw7_QF39jo1zwRvuGqvtN1ypef5rgE5d9vvt9NVcNXV6BmDXqFkKi07B091kt7Tjn_nobszbmfq4_nqYWg95TAU6BAK67QvUfdSk0zemEgDiuPDcUwPAnzjBSuYrcXyKgefhPTkkE4nV8qi8qHgPscUyjKmH8b8qRHpNaLngIWPbuuzQgXZrmr8bX8r8Ke_qOknfjbHsMQIZkShXscNdyjmMw4QvvWjCXLiU)";
++	const std::string exponent = R"(AQAB)";
++
++	const auto public_key = jwt::helper::create_public_key_from_rsa_components(modulus, exponent);
++
++	ASSERT_EQ(public_key, public_key_expected);
++}
++
+ TEST(HelperTest, ErrorCodeMessages) {
+ 	ASSERT_EQ(std::error_code(jwt::error::rsa_error::ok).message(), "no error");
+ 	ASSERT_EQ(std::error_code(static_cast<jwt::error::rsa_error>(-1)).message(), "unknown RSA error");
+@@ -52,14 +73,14 @@ TEST(HelperTest, ErrorCodeMessages) {
+ 			  std::string("token_verification_error"));
+ 
+ 	int i = 10;
+-	for (i = 10; i < 19; i++) {
++	for (i = 10; i < 21; i++) {
+ 		ASSERT_NE(std::error_code(static_cast<jwt::error::rsa_error>(i)).message(),
+ 				  std::error_code(static_cast<jwt::error::rsa_error>(-1)).message());
+ 	}
+ 	ASSERT_EQ(std::error_code(static_cast<jwt::error::rsa_error>(i)).message(),
+ 			  std::error_code(static_cast<jwt::error::rsa_error>(-1)).message());
+ 
+-	for (i = 10; i < 17; i++) {
++	for (i = 10; i < 22; i++) {
+ 		ASSERT_NE(std::error_code(static_cast<jwt::error::ecdsa_error>(i)).message(),
+ 				  std::error_code(static_cast<jwt::error::ecdsa_error>(-1)).message());
+ 	}
+diff --git a/tests/Keys.cpp b/tests/Keys.cpp
+index 60abdd2..a5d81f6 100644
+--- a/tests/Keys.cpp
++++ b/tests/Keys.cpp
+@@ -157,7 +157,19 @@ d3QtY3BwMQ8wDQYDVQQLDAZnaXRodWIxFDASBgNVBAMMC2V4YW1wbGUuY29tMCow
+ BQYDK2VwAyEAUdLe1SUWxc/95f39pfmuwe1SLHpFXf5gcRQlMH2sjgwwBQYDK2Vw
+ A0EAezYcLIUnyy86uUnAZdAMPn7wTruNKtG36GrTF3PF4dtdoGF1OV5DLnNK0Hbs
+ 3GyYtaZs6AEHwDXl/INXu2zoCQ==
+------END CERTIFICATE-----)";
++-----END CERTIFICATE-----
++)";
++	// openssl x509 -outform der -in ed25519_certificate.pem -out ed25519_certificate.der
++	// openssl base64 -in ed25519_certificate.der -out ed25519_certificate.b64
++	std::string ed25519_certificate_base64_der = "MIIBjzCCAUECFCQlWQxMEMe4c3OOimH4/y+o/HpfMAUGAytlcDBqMQswCQYDVQQG"
++												 "EwJDQTEPMA0GA1UECAwGUXVlYmVjMREwDwYDVQQHDAhNb250cmVhbDEQMA4GA1UE"
++												 "CgwHand0LWNwcDEPMA0GA1UECwwGZ2l0aHViMRQwEgYDVQQDDAtleGFtcGxlLmNv"
++												 "bTAeFw0yMDA3MzAyMTIwMDBaFw0yMjA2MzAyMTIwMDBaMGoxCzAJBgNVBAYTAkNB"
++												 "MQ8wDQYDVQQIDAZRdWViZWMxETAPBgNVBAcMCE1vbnRyZWFsMRAwDgYDVQQKDAdq"
++												 "d3QtY3BwMQ8wDQYDVQQLDAZnaXRodWIxFDASBgNVBAMMC2V4YW1wbGUuY29tMCow"
++												 "BQYDK2VwAyEAUdLe1SUWxc/95f39pfmuwe1SLHpFXf5gcRQlMH2sjgwwBQYDK2Vw"
++												 "A0EAezYcLIUnyy86uUnAZdAMPn7wTruNKtG36GrTF3PF4dtdoGF1OV5DLnNK0Hbs"
++												 "3GyYtaZs6AEHwDXl/INXu2zoCQ==";
+ 	std::string ed448_priv_key = R"(-----BEGIN PRIVATE KEY-----
+ MEcCAQAwBQYDK2VxBDsEOZNyV4kIWehIWSsPCnDEZbBF+g2WoUgUwox8eQJTq8Hz
+ y4okU+JZAV8RqQ270fJL/Safvvc1SbbF1A==
+diff --git a/tests/OpenSSLErrorTest.cpp b/tests/OpenSSLErrorTest.cpp
+index 45ada66..b137a0d 100644
+--- a/tests/OpenSSLErrorTest.cpp
++++ b/tests/OpenSSLErrorTest.cpp
+@@ -22,6 +22,7 @@ static uint64_t fail_X509_get_pubkey = 0;
+ static uint64_t fail_PEM_write_bio_PUBKEY = 0;
+ static uint64_t fail_PEM_write_bio_cert = 0;
+ static uint64_t fail_BIO_ctrl = 0;
++#define fail_BIO_get_mem_data fail_BIO_ctrl
+ static uint64_t fail_BIO_write = 0;
+ static uint64_t fail_PEM_read_bio_PUBKEY = 0;
+ static uint64_t fail_PEM_read_bio_PrivateKey = 0;
+@@ -50,6 +51,17 @@ static uint64_t fail_EVP_DigestSignFinal = 0;
+ static uint64_t fail_EVP_DigestVerifyFinal = 0;
+ static uint64_t fail_d2i_ECDSA_SIG = 0;
+ static uint64_t fail_i2d_ECDSA_SIG = 0;
++#ifdef JWT_OPENSSL_3_0
++static uint64_t fail_OSSL_PARAM_BLD_new = 0;
++static uint64_t fail_OSSL_PARAM_BLD_push_BN = 0;
++static uint64_t fail_OSSL_PARAM_BLD_to_param = 0;
++static uint64_t fail_EVP_PKEY_CTX_new_from_name = 0;
++static uint64_t fail_EVP_PKEY_fromdata_init = 0;
++static uint64_t fail_EVP_PKEY_fromdata = 0;
++#else
++static uint64_t fail_PEM_write_bio_RSA_PUBKEY = 0;
++static uint64_t fail_RSA_set0_key = 0;
++#endif
+ 
+ BIO* BIO_new(const BIO_METHOD* type) {
+ 	static BIO* (*origMethod)(const BIO_METHOD*) = nullptr;
+@@ -408,6 +420,96 @@ ECDSA_SIG* d2i_ECDSA_SIG(ECDSA_SIG** psig, const unsigned char** ppin, long len)
+ 		return origMethod(psig, ppin, len);
+ }
+ 
++#ifdef JWT_OPENSSL_3_0
++OSSL_PARAM_BLD* OSSL_PARAM_BLD_new() {
++	static OSSL_PARAM_BLD* (*origMethod)() = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "OSSL_PARAM_BLD_new");
++	bool fail = fail_OSSL_PARAM_BLD_new & 1;
++	fail_OSSL_PARAM_BLD_new = fail_OSSL_PARAM_BLD_new >> 1;
++	if (fail)
++		return nullptr;
++	else
++		return origMethod();
++}
++
++int OSSL_PARAM_BLD_push_BN(OSSL_PARAM_BLD* bld, const char* key, const BIGNUM* bn) {
++	static int (*origMethod)(OSSL_PARAM_BLD * bld, const char* key, const BIGNUM* bn) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "OSSL_PARAM_BLD_push_BN");
++	bool fail = fail_OSSL_PARAM_BLD_push_BN & 1;
++	fail_OSSL_PARAM_BLD_push_BN = fail_OSSL_PARAM_BLD_push_BN >> 1;
++	if (fail)
++		return 0;
++	else
++		return origMethod(bld, key, bn);
++}
++
++OSSL_PARAM* OSSL_PARAM_BLD_to_param(OSSL_PARAM_BLD* bld) {
++	static OSSL_PARAM* (*origMethod)(OSSL_PARAM_BLD * bld) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "OSSL_PARAM_BLD_to_param");
++	bool fail = fail_OSSL_PARAM_BLD_to_param & 1;
++	fail_OSSL_PARAM_BLD_to_param = fail_OSSL_PARAM_BLD_to_param >> 1;
++	if (fail)
++		return nullptr;
++	else
++		return origMethod(bld);
++}
++
++EVP_PKEY_CTX* EVP_PKEY_CTX_new_from_name(OSSL_LIB_CTX* libctx, const char* name, const char* propquery) {
++	static EVP_PKEY_CTX* (*origMethod)(OSSL_LIB_CTX * libctx, const char* name, const char* propquery) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "EVP_PKEY_CTX_new_from_name");
++	bool fail = fail_EVP_PKEY_CTX_new_from_name & 1;
++	fail_EVP_PKEY_CTX_new_from_name = fail_EVP_PKEY_CTX_new_from_name >> 1;
++	if (fail)
++		return nullptr;
++	else
++		return origMethod(libctx, name, propquery);
++}
++
++int EVP_PKEY_fromdata_init(EVP_PKEY_CTX* ctx) {
++	static int (*origMethod)(EVP_PKEY_CTX * ctx) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "EVP_PKEY_fromdata_init");
++	bool fail = fail_EVP_PKEY_fromdata_init & 1;
++	fail_EVP_PKEY_fromdata_init = fail_EVP_PKEY_fromdata_init >> 1;
++	if (fail)
++		return 0;
++	else
++		return origMethod(ctx);
++}
++
++int EVP_PKEY_fromdata(EVP_PKEY_CTX* ctx, EVP_PKEY** ppkey, int selection, OSSL_PARAM params[]) {
++	static int (*origMethod)(EVP_PKEY_CTX * ctx, EVP_PKEY * *ppkey, int selection, OSSL_PARAM params[]) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "EVP_PKEY_fromdata");
++	bool fail = fail_EVP_PKEY_fromdata & 1;
++	fail_EVP_PKEY_fromdata = fail_EVP_PKEY_fromdata >> 1;
++	if (fail)
++		return 0;
++	else
++		return origMethod(ctx, ppkey, selection, params);
++}
++#else
++int PEM_write_bio_RSA_PUBKEY(BIO* bp, RSA* x) {
++	static int (*origMethod)(BIO * bp, RSA * x) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "PEM_write_bio_RSA_PUBKEY");
++	bool fail = fail_PEM_write_bio_RSA_PUBKEY & 1;
++	fail_PEM_write_bio_RSA_PUBKEY = fail_PEM_write_bio_RSA_PUBKEY >> 1;
++	if (fail)
++		return 0;
++	else
++		return origMethod(bp, x);
++}
++
++int RSA_set0_key(RSA* r, BIGNUM* n, BIGNUM* e, BIGNUM* d) {
++	static int (*origMethod)(RSA * r, BIGNUM * n, BIGNUM * e, BIGNUM * d) = nullptr;
++	if (origMethod == nullptr) origMethod = (decltype(origMethod))dlsym(RTLD_NEXT, "RSA_set0_key");
++	bool fail = fail_RSA_set0_key & 1;
++	fail_RSA_set0_key = fail_RSA_set0_key >> 1;
++	if (fail)
++		return 0;
++	else
++		return origMethod(r, n, e, d);
++}
++#endif
++
+ /**
+  * =========== End of black magic ============
+  */
+@@ -436,6 +538,7 @@ inline namespace test_keys {
+ 	extern std::string ed25519_pub_key;
+ 	extern std::string ed25519_pub_key_invalid;
+ 	extern std::string ed25519_certificate;
++	extern std::string ed25519_certificate_base64_der;
+ 	extern std::string ed448_priv_key;
+ 	extern std::string ed448_pub_key;
+ 	extern std::string ed448_pub_key_invalid;
+@@ -457,6 +560,14 @@ TEST(OpenSSLErrorTest, ConvertCertBase64DerToPemReference) {
+ 	ASSERT_EQ(ec.value(), 0);
+ }
+ 
++TEST(OpenSSLErrorTest, ConvertEcdsaCertBase64DerToPemReference) {
++	std::error_code ec;
++	auto res = jwt::helper::convert_base64_der_to_pem(ed25519_certificate_base64_der, ec);
++	ASSERT_EQ(res, ed25519_certificate);
++	ASSERT_FALSE(!(!ec));
++	ASSERT_EQ(ec.value(), 0);
++}
++
+ struct multitest_entry {
+ 	uint64_t* fail_mask_ptr;
+ 	uint64_t fail_bitmask;
+@@ -507,6 +618,67 @@ TEST(OpenSSLErrorTest, ExtractPubkeyFromCertErrorCode) {
+ 	});
+ }
+ 
++TEST(OpenSSLErrorTest, CreateRsaPublicKeyFromComponents) {
++	std::vector<multitest_entry> mapping{
++		{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
++		{&fail_BIO_get_mem_data, 1, jwt::error::rsa_error::convert_to_pem_failed},
++#ifdef JWT_OPENSSL_3_0
++		{&fail_PEM_write_bio_PUBKEY, 1, jwt::error::rsa_error::load_key_bio_write},
++		{&fail_OSSL_PARAM_BLD_new, 1, jwt::error::rsa_error::create_context_failed},
++		{&fail_OSSL_PARAM_BLD_push_BN, 1, jwt::error::rsa_error::set_rsa_failed},
++		{&fail_OSSL_PARAM_BLD_to_param, 1, jwt::error::rsa_error::set_rsa_failed},
++		{&fail_EVP_PKEY_CTX_new_from_name, 1, jwt::error::rsa_error::create_context_failed},
++		{&fail_EVP_PKEY_fromdata_init, 1, jwt::error::rsa_error::cert_load_failed},
++		{&fail_EVP_PKEY_fromdata, 1, jwt::error::rsa_error::cert_load_failed}
++#else
++		{&fail_PEM_write_bio_RSA_PUBKEY, 1, jwt::error::rsa_error::load_key_bio_write},
++		{&fail_RSA_set0_key, 1, jwt::error::rsa_error::set_rsa_failed}
++#endif
++	};
++
++	run_multitest(mapping, [](std::error_code& ec) {
++		try {
++			jwt::helper::create_public_key_from_rsa_components(
++				"pjdss8ZaDfEH6K6U7GeW2nxDqR4IP049fk1fK0lndimbMMVBdPv_hSpm8T8EtBDxrUdi1OHZfMhUixGaut-"
++				"3nQ4GG9nM249oxhCtxqqNvEXrmQRGqczyLxuh-fKn9Fg--"
++				"hS9UpazHpfVAFnB5aCfXoNhPuI8oByyFKMKaOVgHNqP5NBEqabiLftZD3W_"
++				"lsFCPGuzr4Vp0YS7zS2hDYScC2oOMu4rGU1LcMZf39p3153Cq7bS2Xh6Y-vw5pwzFYZdjQxDn8x8BG3fJ6j8TGLXQsbKH1218_"
++				"HcUJRvMwdpbUQG5nvA2GXVqLqdwp054Lzk9_B_f1lVrmOKuHjTNHq48w",
++				"AQAB");
++			FAIL(); // Should never reach this
++		} catch (const jwt::error::rsa_exception& e) { ec = e.code(); }
++	});
++}
++
++TEST(OpenSSLErrorTest, CreateRsaPublicKeyFromComponentsErrorCode) {
++	std::vector<multitest_entry> mapping{
++		{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
++		{&fail_BIO_get_mem_data, 1, jwt::error::rsa_error::convert_to_pem_failed},
++#ifdef JWT_OPENSSL_3_0
++		{&fail_PEM_write_bio_PUBKEY, 1, jwt::error::rsa_error::load_key_bio_write},
++		{&fail_OSSL_PARAM_BLD_new, 1, jwt::error::rsa_error::create_context_failed},
++		{&fail_OSSL_PARAM_BLD_push_BN, 1, jwt::error::rsa_error::set_rsa_failed},
++		{&fail_OSSL_PARAM_BLD_to_param, 1, jwt::error::rsa_error::set_rsa_failed},
++		{&fail_EVP_PKEY_CTX_new_from_name, 1, jwt::error::rsa_error::create_context_failed},
++		{&fail_EVP_PKEY_fromdata_init, 1, jwt::error::rsa_error::cert_load_failed},
++		{&fail_EVP_PKEY_fromdata, 1, jwt::error::rsa_error::cert_load_failed}
++#else
++		{&fail_PEM_write_bio_RSA_PUBKEY, 1, jwt::error::rsa_error::load_key_bio_write},
++		{&fail_RSA_set0_key, 1, jwt::error::rsa_error::set_rsa_failed}
++#endif
++	};
++
++	run_multitest(mapping, [](std::error_code& ec) {
++		auto res = jwt::helper::create_public_key_from_rsa_components(
++			"pjdss8ZaDfEH6K6U7GeW2nxDqR4IP049fk1fK0lndimbMMVBdPv_hSpm8T8EtBDxrUdi1OHZfMhUixGaut-"
++			"3nQ4GG9nM249oxhCtxqqNvEXrmQRGqczyLxuh-fKn9Fg--hS9UpazHpfVAFnB5aCfXoNhPuI8oByyFKMKaOVgHNqP5NBEqabiLftZD3W_"
++			"lsFCPGuzr4Vp0YS7zS2hDYScC2oOMu4rGU1LcMZf39p3153Cq7bS2Xh6Y-vw5pwzFYZdjQxDn8x8BG3fJ6j8TGLXQsbKH1218_"
++			"HcUJRvMwdpbUQG5nvA2GXVqLqdwp054Lzk9_B_f1lVrmOKuHjTNHq48w",
++			"AQAB", ec);
++		ASSERT_EQ(res, "");
++	});
++}
++
+ TEST(OpenSSLErrorTest, ConvertCertBase64DerToPem) {
+ 	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
+ 										 {&fail_PEM_write_bio_cert, 1, jwt::error::rsa_error::write_cert_failed},
+@@ -520,6 +692,19 @@ TEST(OpenSSLErrorTest, ConvertCertBase64DerToPem) {
+ 	});
+ }
+ 
++TEST(OpenSSLErrorTest, ConvertEcdsaCertBase64DerToPem) {
++	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
++										 {&fail_PEM_write_bio_cert, 1, jwt::error::rsa_error::write_cert_failed},
++										 {&fail_BIO_ctrl, 1, jwt::error::rsa_error::convert_to_pem_failed}};
++
++	run_multitest(mapping, [](std::error_code& ec) {
++		try {
++			jwt::helper::convert_base64_der_to_pem(ed25519_certificate_base64_der);
++			FAIL(); // Should never reach this
++		} catch (const jwt::error::rsa_exception& e) { ec = e.code(); }
++	});
++}
++
+ TEST(OpenSSLErrorTest, ConvertCertBase64DerToPemErrorCode) {
+ 	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
+ 										 {&fail_PEM_write_bio_cert, 1, jwt::error::rsa_error::write_cert_failed},
+@@ -536,6 +721,16 @@ TEST(OpenSSLErrorTest, LoadPublicKeyFromStringReference) {
+ 	ASSERT_TRUE(res);
+ }
+ 
++TEST(OpenSSLErrorTest, LoadPublicKeyFromStringReferenceWithEcCert) {
++	auto res = jwt::helper::load_public_key_from_string(ecdsa256_pub_key, "");
++	ASSERT_TRUE(res);
++}
++
++TEST(OpenSSLErrorTest, LoadPublicKeyFromStringReferenceWithEcCertAndErr) {
++	auto res = jwt::helper::load_public_key_from_string<jwt::error::ecdsa_error>(ecdsa256_pub_key, "");
++	ASSERT_TRUE(res);
++}
++
+ TEST(OpenSSLErrorTest, LoadPublicKeyFromString) {
+ 	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
+ 										 {&fail_BIO_write, 1, jwt::error::rsa_error::load_key_bio_write},
+@@ -549,6 +744,19 @@ TEST(OpenSSLErrorTest, LoadPublicKeyFromString) {
+ 	});
+ }
+ 
++TEST(OpenSSLErrorTest, LoadPublicKeyFromStringWithEc) {
++	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::ecdsa_error::create_mem_bio_failed},
++										 {&fail_BIO_write, 1, jwt::error::ecdsa_error::load_key_bio_write},
++										 {&fail_PEM_read_bio_PUBKEY, 1, jwt::error::ecdsa_error::load_key_bio_read}};
++
++	run_multitest(mapping, [](std::error_code& ec) {
++		try {
++			jwt::helper::load_public_key_from_string<jwt::error::ecdsa_error>(ecdsa256_pub_key, "");
++			FAIL(); // Should never reach this
++		} catch (const jwt::error::ecdsa_exception& e) { ec = e.code(); }
++	});
++}
++
+ TEST(OpenSSLErrorTest, LoadPublicKeyFromStringErrorCode) {
+ 	std::vector<multitest_entry> mapping{{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
+ 										 {&fail_BIO_write, 1, jwt::error::rsa_error::load_key_bio_write},
+@@ -568,6 +776,7 @@ TEST(OpenSSLErrorTest, LoadPublicKeyCertFromStringReference) {
+ TEST(OpenSSLErrorTest, LoadPublicKeyCertFromString) {
+ 	std::vector<multitest_entry> mapping {
+ 		{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
++			{&fail_BIO_get_mem_data, 1, jwt::error::rsa_error::convert_to_pem_failed},
+ #if !defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER < 0x3050300fL
+ 			{&fail_BIO_write, 1, jwt::error::rsa_error::load_key_bio_write},
+ #else
+@@ -589,6 +798,7 @@ TEST(OpenSSLErrorTest, LoadPublicKeyCertFromString) {
+ TEST(OpenSSLErrorTest, LoadPublicKeyCertFromStringErrorCode) {
+ 	std::vector<multitest_entry> mapping {
+ 		{&fail_BIO_new, 1, jwt::error::rsa_error::create_mem_bio_failed},
++			{&fail_BIO_get_mem_data, 1, jwt::error::rsa_error::convert_to_pem_failed}, // extract_pubkey_from_cert
+ #if !defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER < 0x3050300fL
+ 			{&fail_BIO_write, 1, jwt::error::rsa_error::load_key_bio_write},
+ #else
+@@ -741,15 +951,15 @@ TEST(OpenSSLErrorTest, ECDSACertificate) {
+ #if !defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER < 0x3050300fL
+ 			{&fail_BIO_write, 1, jwt::error::ecdsa_error::load_key_bio_write},
+ #else
+-			{&fail_BIO_write, 1, jwt::error::rsa_error::write_key_failed},
++			{&fail_BIO_write, 1, jwt::error::ecdsa_error::write_key_failed},
+ #endif
+ 			{&fail_PEM_read_bio_PUBKEY, 1, jwt::error::ecdsa_error::load_key_bio_read},
+ 			// extract_pubkey_from_cert
+-			{&fail_BIO_new, 2, jwt::error::rsa_error::create_mem_bio_failed},
+-			{&fail_PEM_read_bio_X509, 1, jwt::error::rsa_error::cert_load_failed},
+-			{&fail_X509_get_pubkey, 1, jwt::error::rsa_error::get_key_failed},
+-			{&fail_PEM_write_bio_PUBKEY, 1, jwt::error::rsa_error::write_key_failed}, {
+-			&fail_BIO_ctrl, 1, jwt::error::rsa_error::convert_to_pem_failed
++			{&fail_BIO_new, 2, jwt::error::ecdsa_error::create_mem_bio_failed},
++			{&fail_PEM_read_bio_X509, 1, jwt::error::ecdsa_error::cert_load_failed},
++			{&fail_X509_get_pubkey, 1, jwt::error::ecdsa_error::get_key_failed},
++			{&fail_PEM_write_bio_PUBKEY, 1, jwt::error::ecdsa_error::write_key_failed}, {
++			&fail_BIO_ctrl, 1, jwt::error::ecdsa_error::convert_to_pem_failed
+ 		}
+ 	};
+ 
+@@ -892,6 +1102,9 @@ TEST(OpenSSLErrorTest, EdDSACertificate) {
+ }
+ 
+ TEST(OpenSSLErrorTest, Ed25519Reference) {
++	// No keys should throw
++	ASSERT_THROW(jwt::algorithm::ed25519("", ""), jwt::error::ecdsa_exception);
++
+ 	jwt::algorithm::ed25519 alg{ed25519_pub_key, ed25519_priv_key};
+ 	std::error_code ec;
+ 	auto res = alg.sign("testdata", ec);
+diff --git a/tests/TokenTest.cpp b/tests/TokenTest.cpp
+index a64e0d1..53574a6 100644
+--- a/tests/TokenTest.cpp
++++ b/tests/TokenTest.cpp
+@@ -728,7 +728,7 @@ TEST(TokenTest, VerifyTokenType) {
+ }
+ 
+ TEST(TokenTest, GetClaimThrows) {
+-	auto token = "eyJhbGciOiJub25lIiwidHlwIjoiSldTIn0.eyJpc3MiOiJhdXRoMCJ9.";
++	const std::string token = "eyJhbGciOiJub25lIiwidHlwIjoiSldTIn0.eyJpc3MiOiJhdXRoMCJ9.";
+ 	auto decoded_token = jwt::decode(token);
+ 
+ 	ASSERT_THROW(decoded_token.get_header_claim("test"), jwt::error::claim_not_present_exception);
+@@ -775,8 +775,8 @@ TEST(TokenTest, ThrowInvalidKeyLength) {
+ }
+ 
+ TEST(TokenTest, MoveDecodedToken) {
+-	std::string token0 = "eyJhbGciOiJub25lIiwidHlwIjoiSldTIn0.eyJpc3MiOiJhdXRoMCJ9.";
+-	std::string token1 =
++	const std::string token0 = "eyJhbGciOiJub25lIiwidHlwIjoiSldTIn0.eyJpc3MiOiJhdXRoMCJ9.";
++	const std::string token1 =
+ 		"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXUyJ9.eyJpc3MiOiJhdXRoMCJ9.AbIJTDMFc7yUa5MhvcP03nJPyCPzZtQcGEp-zWfOkEE";
+ 	auto decoded_token0 = jwt::decode(token0);
+ 	auto decoded_token1 = jwt::decode(token1);
+diff --git a/tests/traits/OspJsoncppTest.cpp b/tests/traits/OspJsoncppTest.cpp
+new file mode 100644
+index 0000000..f0bd3d5
+--- /dev/null
++++ b/tests/traits/OspJsoncppTest.cpp
+@@ -0,0 +1,133 @@
++#include "jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h"
++
++#include <gtest/gtest.h>
++
++TEST(OspJsoncppTest, BasicClaims) {
++	const auto string = jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp>(
++		jwt::traits::open_source_parsers_jsoncpp::string_type("string"));
++	ASSERT_EQ(string.get_type(), jwt::json::type::string);
++
++	const auto array = jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp>(
++		std::set<jwt::traits::open_source_parsers_jsoncpp::string_type>{"string", "string"});
++	ASSERT_EQ(array.get_type(), jwt::json::type::array);
++
++	const auto integer = jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp>(159816816);
++	ASSERT_EQ(integer.get_type(), jwt::json::type::integer);
++}
++
++TEST(OspJsoncppTest, AudienceAsString) {
++	jwt::traits::open_source_parsers_jsoncpp::string_type token =
++		"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0ZXN0In0.WZnM3SIiSRHsbO3O7Z2bmIzTJ4EC32HRBKfLznHhrh4";
++	auto decoded = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++
++	ASSERT_TRUE(decoded.has_algorithm());
++	ASSERT_TRUE(decoded.has_type());
++	ASSERT_FALSE(decoded.has_content_type());
++	ASSERT_FALSE(decoded.has_key_id());
++	ASSERT_FALSE(decoded.has_issuer());
++	ASSERT_FALSE(decoded.has_subject());
++	ASSERT_TRUE(decoded.has_audience());
++	ASSERT_FALSE(decoded.has_expires_at());
++	ASSERT_FALSE(decoded.has_not_before());
++	ASSERT_FALSE(decoded.has_issued_at());
++	ASSERT_FALSE(decoded.has_id());
++
++	ASSERT_EQ("HS256", decoded.get_algorithm());
++	ASSERT_EQ("JWT", decoded.get_type());
++	auto aud = decoded.get_audience();
++	ASSERT_EQ(1, aud.size());
++	ASSERT_EQ("test", *aud.begin());
++}
++
++TEST(OspJsoncppTest, SetArray) {
++	std::vector<int64_t> vect = {100, 20, 10};
++	auto token = jwt::create<jwt::traits::open_source_parsers_jsoncpp>()
++					 .set_payload_claim(
++						 "test", jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp>(vect.begin(), vect.end()))
++					 .sign(jwt::algorithm::none{});
++	ASSERT_EQ(token, "eyJhbGciOiJub25lIn0.eyJ0ZXN0IjpbMTAwLDIwLDEwXX0.");
++}
++
++TEST(OspJsoncppTest, SetObject) {
++	std::istringstream iss{"{\"api-x\": [1]}"};
++	jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp> object;
++	iss >> object;
++	ASSERT_EQ(object.get_type(), jwt::json::type::object);
++
++	auto token = jwt::create<jwt::traits::open_source_parsers_jsoncpp>()
++					 .set_payload_claim("namespace", object)
++					 .sign(jwt::algorithm::hs256("test"));
++	ASSERT_EQ(token,
++			  "eyJhbGciOiJIUzI1NiJ9.eyJuYW1lc3BhY2UiOnsiYXBpLXgiOlsxXX19.F8I6I2RcSF98bKa0IpIz09fRZtHr1CWnWKx2za-tFQA");
++}
++
++TEST(OspJsoncppTest, VerifyTokenHS256) {
++	jwt::traits::open_source_parsers_jsoncpp::string_type token =
++		"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXUyJ9.eyJpc3MiOiJhdXRoMCJ9.AbIJTDMFc7yUa5MhvcP03nJPyCPzZtQcGEp-zWfOkEE";
++
++	const auto decoded_token = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++	const auto verify = jwt::verify<jwt::traits::open_source_parsers_jsoncpp>()
++							.allow_algorithm(jwt::algorithm::hs256{"secret"})
++							.with_issuer("auth0");
++	verify.verify(decoded_token);
++}
++
++TEST(OspJsoncppTest, VerifyTokenExpirationValid) {
++	const auto token = jwt::create<jwt::traits::open_source_parsers_jsoncpp>()
++						   .set_issuer("auth0")
++						   .set_issued_at(std::chrono::system_clock::now())
++						   .set_expires_at(std::chrono::system_clock::now() + std::chrono::seconds{3600})
++						   .sign(jwt::algorithm::hs256{"secret"});
++
++	const auto decoded_token = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++	const auto verify = jwt::verify<jwt::traits::open_source_parsers_jsoncpp>()
++							.allow_algorithm(jwt::algorithm::hs256{"secret"})
++							.with_issuer("auth0");
++	verify.verify(decoded_token);
++}
++
++TEST(OspJsoncppTest, VerifyTokenExpired) {
++	const auto token = jwt::create<jwt::traits::open_source_parsers_jsoncpp>()
++						   .set_issuer("auth0")
++						   .set_issued_at(std::chrono::system_clock::now() - std::chrono::seconds{3601})
++						   .set_expires_at(std::chrono::system_clock::now() - std::chrono::seconds{1})
++						   .sign(jwt::algorithm::hs256{"secret"});
++
++	const auto decoded_token = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++	const auto verify = jwt::verify<jwt::traits::open_source_parsers_jsoncpp>()
++							.allow_algorithm(jwt::algorithm::hs256{"secret"})
++							.with_issuer("auth0");
++	ASSERT_THROW(verify.verify(decoded_token), jwt::error::token_verification_exception);
++
++	std::error_code ec;
++	ASSERT_NO_THROW(verify.verify(decoded_token, ec));
++	ASSERT_TRUE(!(!ec));
++	ASSERT_EQ(ec.category(), jwt::error::token_verification_error_category());
++	ASSERT_EQ(ec.value(), static_cast<int>(jwt::error::token_verification_error::token_expired));
++}
++
++TEST(OspJsoncppTest, VerifyArray) {
++	jwt::traits::open_source_parsers_jsoncpp::string_type token = "eyJhbGciOiJub25lIn0.eyJ0ZXN0IjpbMTAwLDIwLDEwXX0.";
++	const auto decoded_token = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++
++	std::vector<int64_t> vect = {100, 20, 10};
++	jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp> array_claim(vect.begin(), vect.end());
++	const auto verify = jwt::verify<jwt::traits::open_source_parsers_jsoncpp>()
++							.allow_algorithm(jwt::algorithm::none{})
++							.with_claim("test", array_claim);
++	ASSERT_NO_THROW(verify.verify(decoded_token));
++}
++
++TEST(OspJsoncppTest, VerifyObject) {
++	jwt::traits::open_source_parsers_jsoncpp::string_type token =
++		"eyJhbGciOiJIUzI1NiJ9.eyJuYW1lc3BhY2UiOnsiYXBpLXgiOlsxXX19.F8I6I2RcSF98bKa0IpIz09fRZtHr1CWnWKx2za-tFQA";
++	const auto decoded_token = jwt::decode<jwt::traits::open_source_parsers_jsoncpp>(token);
++
++	jwt::basic_claim<jwt::traits::open_source_parsers_jsoncpp> object_claim;
++	std::istringstream iss{"{\"api-x\": [1]}"};
++	iss >> object_claim;
++	const auto verify = jwt::verify<jwt::traits::open_source_parsers_jsoncpp>()
++							.allow_algorithm(jwt::algorithm::hs256("test"))
++							.with_claim("namespace", object_claim);
++	ASSERT_NO_THROW(verify.verify(decoded_token));
++}
