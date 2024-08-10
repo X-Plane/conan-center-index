@@ -2,7 +2,7 @@ import os
 
 from conan import ConanFile
 from conan.tools.cmake import CMake, cmake_layout, CMakeToolchain
-from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rm, rmdir
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rm, rmdir, load, save
 
 required_conan_version = ">=1.54.0"
 
@@ -48,7 +48,41 @@ class ShapelibConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTING"] = False
         tc.cache_variables["USE_RPATH"] = False
+        if self.settings.os == "iOS":
+            tc.cache_variables["CMAKE_SYSTEM_NAME"] = "iOS"
+            tc.cache_variables["CMAKE_OSX_DEPLOYMENT_TARGET"] = str(self.settings.os.version)
+            tc.cache_variables["CMAKE_MACOSX_BUNDLE"] = "OFF"
+            tc.cache_variables["BUILD_SHARED_LIBS"] = "OFF"
         tc.generate()
+
+        if self.settings.os == "iOS":
+            self._patch_for_ios()
+
+    def _patch_for_ios(self):
+        cmakelists_path = os.path.join(self.source_folder, "CMakeLists.txt")
+        content = load(self, cmakelists_path)
+        
+        # Patch to handle iOS in Unix checks
+        content = content.replace(
+            "if(UNIX AND NOT APPLE)",
+            "if(UNIX AND NOT (APPLE OR IOS))")
+        
+        # Patch to disable building executables for iOS
+        content = content.replace(
+            "add_executable(shpdump shpdump.c)",
+            "if(NOT IOS)\n  add_executable(shpdump shpdump.c)\nendif()")
+        
+        content = content.replace(
+            "add_executable(shptest shptest.c)",
+            "if(NOT IOS)\n  add_executable(shptest shptest.c)\nendif()")
+        
+        # Add iOS-specific flags
+        content += "\nif(IOS)\n"
+        content += "  set(CMAKE_C_FLAGS \"${CMAKE_C_FLAGS} -fembed-bitcode\")\n"
+        content += "  set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -fembed-bitcode\")\n"
+        content += "endif()\n"
+        
+        save(self, cmakelists_path, content)
 
     def build(self):
         apply_conandata_patches(self)
