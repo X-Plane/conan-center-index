@@ -1,8 +1,22 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5170b7dc..50a69fa5 100644
+index 5170b7dc..65f4b653 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -463,7 +463,6 @@ set_property (GLOBAL PROPERTY USE_FOLDERS ON)
+@@ -1,3 +1,4 @@
++cmake_minimum_required (VERSION 3.16)
+ project (GeographicLib)
+ 
+ # Version information
+@@ -53,8 +54,6 @@ set (LIBVERSION_BUILD 22.0.0)
+ string (TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
+ string (TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPER)
+ 
+-cmake_minimum_required (VERSION 3.7.0) # This version was released 2016-11-11
+-
+ if (EXISTS ${PROJECT_SOURCE_DIR}/VERSION)
+   # If the file, VERSION, exists then this is a released version of
+   # GeographicLib and the processed man pages are available in the
+@@ -463,7 +462,6 @@ set_property (GLOBAL PROPERTY USE_FOLDERS ON)
  # The list of subdirectories to process
  add_subdirectory (src)
  add_subdirectory (include/GeographicLib)
