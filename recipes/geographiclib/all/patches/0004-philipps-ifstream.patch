@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8b74ddd5..1f505010 100644
+index 5170b7dc..50a69fa5 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -464,7 +464,6 @@ set_property (GLOBAL PROPERTY USE_FOLDERS ON)
+@@ -463,7 +463,6 @@ set_property (GLOBAL PROPERTY USE_FOLDERS ON)
  # The list of subdirectories to process
  add_subdirectory (src)
  add_subdirectory (include/GeographicLib)
@@ -11,7 +11,7 @@ index 8b74ddd5..1f505010 100644
  add_subdirectory (doc)
  if (EXAMPLEDIR)
 diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
-index 7886c010..ca8c1177 100644
+index b2a4aa1e..a98895ba 100644
 --- a/cmake/CMakeLists.txt
 +++ b/cmake/CMakeLists.txt
 @@ -45,7 +45,7 @@ configure_file (project-config.cmake.in
@@ -23,18 +23,8 @@ index 7886c010..ca8c1177 100644
    NAMESPACE ${PROJECT_NAME}::
    FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME_LOWER}-targets.cmake")
  
-diff --git a/experimental/CMakeLists.txt b/experimental/CMakeLists.txt
-index 0d54f1d0..e22fe048 100644
---- a/experimental/CMakeLists.txt
-+++ b/experimental/CMakeLists.txt
-@@ -32,4 +32,4 @@ if (APPLE AND RELATIVE_LIBDIR)
- endif ()
- 
- # Put all the tools into a folder in the IDE
--set_property (TARGET experimental ${TOOLS} PROPERTY FOLDER experimental)
-+set_property (TARGET experimental PROPERTY FOLDER experimental)
 diff --git a/include/GeographicLib/Geoid.hpp b/include/GeographicLib/Geoid.hpp
-index 027c3f6a..b17b83a9 100644
+index bd473cfa..51709a8b 100644
 --- a/include/GeographicLib/Geoid.hpp
 +++ b/include/GeographicLib/Geoid.hpp
 @@ -11,7 +11,7 @@
@@ -92,7 +82,7 @@ index 027c3f6a..b17b83a9 100644
  
      /**
 diff --git a/src/Geoid.cpp b/src/Geoid.cpp
-index 6e6d1767..d64c3752 100644
+index e738e505..5f1a671c 100644
 --- a/src/Geoid.cpp
 +++ b/src/Geoid.cpp
 @@ -198,7 +198,8 @@ namespace GeographicLib {
@@ -105,7 +95,14 @@ index 6e6d1767..d64c3752 100644
                 bool threadsafe)
      : _name(name)
      , _dir(path)
-@@ -213,18 +214,17 @@ namespace GeographicLib {
+@@ -207,24 +208,24 @@ namespace GeographicLib {
+     , _e2( (2 - Constants::WGS84_f()) * Constants::WGS84_f() )
+     , _degree( Math::degree() )
+     , _eps( sqrt(numeric_limits<real>::epsilon()) )
++    , _filebuf(std::string(buf, sz))
+     , _threadsafe(false)        // Set after cache is read
+   {
+     static_assert(sizeof(pixel_t) == pixel_size_, "pixel_t has the wrong size");
      if (_dir.empty())
        _dir = DefaultGeoidPath();
      _filename = _dir + "/" + _name + (pixel_size_ != 4 ? ".pgm" : ".pgm4");
@@ -127,7 +124,7 @@ index 6e6d1767..d64c3752 100644
        if (s.empty())
          continue;
        if (s[0] == '#') {
-@@ -259,12 +259,12 @@ namespace GeographicLib {
+@@ -259,12 +260,12 @@ namespace GeographicLib {
      }
      {
        unsigned maxval;
@@ -142,7 +139,7 @@ index 6e6d1767..d64c3752 100644
        _swidth = (unsigned long long)(_width);
      }
      if (_offset == numeric_limits<real>::max())
-@@ -282,10 +282,10 @@ namespace GeographicLib {
+@@ -282,10 +283,10 @@ namespace GeographicLib {
      if (!(_height & 1))
        // This is so that latitude grid includes the equator.
        throw GeographicErr("Raster height is even " + _filename);
@@ -156,7 +153,7 @@ index 6e6d1767..d64c3752 100644
        // Possibly this test should be "<" because the file contains, e.g., a
        // second image.  However, for now we are more strict.
        throw GeographicErr("File has the wrong length " + _filename);
-@@ -295,10 +295,9 @@ namespace GeographicLib {
+@@ -295,10 +296,9 @@ namespace GeographicLib {
      _ix = _width;
      _iy = _height;
      // Ensure that file errors throw exceptions
@@ -168,7 +165,7 @@ index 6e6d1767..d64c3752 100644
        _threadsafe = true;
      }
    }
-@@ -470,12 +469,12 @@ namespace GeographicLib {
+@@ -470,12 +470,12 @@ namespace GeographicLib {
          int xs1 = min(_width - iw1, _xsize);
          filepos(iw1, iy1);
          Utility::readarray<pixel_t, pixel_t, true>
