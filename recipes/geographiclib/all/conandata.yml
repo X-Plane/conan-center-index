@@ -12,6 +12,10 @@ sources:
     url: "https://github.com/geographiclib/geographiclib/archive/refs/tags/v1.50.2.tar.gz"
     sha256: "6bdb960292b3197dc18bc3005ee76e4cdefbf025154d71fb42c986cb5ed1e4e7"
 patches:
+  "2.3":
+    - patch_file: "patches/0004-philipps-ifstream.patch"
+      patch_description: "Stop using stream and use raw file buffers"
+      patch_type: "conan"
   "1.52":
     - patch_file: "patches/0002-cmake-minimum-required-1.51.patch"
       patch_description: "Add cmake_minimum_required() to top CMakeLists"

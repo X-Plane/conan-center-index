@@ -1,0 +1,185 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8b74ddd5..1f505010 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -464,7 +464,6 @@ set_property (GLOBAL PROPERTY USE_FOLDERS ON)
+ # The list of subdirectories to process
+ add_subdirectory (src)
+ add_subdirectory (include/GeographicLib)
+-add_subdirectory (tools)
+ add_subdirectory (man)
+ add_subdirectory (doc)
+ if (EXAMPLEDIR)
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index 7886c010..ca8c1177 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -45,7 +45,7 @@ configure_file (project-config.cmake.in
+ configure_file (project-config-version.cmake.in
+   "${PROJECT_BINARY_DIR}/${PROJECT_NAME_LOWER}-config-version.cmake" @ONLY)
+ export (TARGETS
+-  ${PROJECT_ALL_LIBRARIES} ${TOOLS}
++  ${PROJECT_ALL_LIBRARIES}
+   NAMESPACE ${PROJECT_NAME}::
+   FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME_LOWER}-targets.cmake")
+ 
+diff --git a/experimental/CMakeLists.txt b/experimental/CMakeLists.txt
+index 0d54f1d0..e22fe048 100644
+--- a/experimental/CMakeLists.txt
++++ b/experimental/CMakeLists.txt
+@@ -32,4 +32,4 @@ if (APPLE AND RELATIVE_LIBDIR)
+ endif ()
+ 
+ # Put all the tools into a folder in the IDE
+-set_property (TARGET experimental ${TOOLS} PROPERTY FOLDER experimental)
++set_property (TARGET experimental PROPERTY FOLDER experimental)
+diff --git a/include/GeographicLib/Geoid.hpp b/include/GeographicLib/Geoid.hpp
+index 027c3f6a..b17b83a9 100644
+--- a/include/GeographicLib/Geoid.hpp
++++ b/include/GeographicLib/Geoid.hpp
+@@ -11,7 +11,7 @@
+ #define GEOGRAPHICLIB_GEOID_HPP 1
+ 
+ #include <vector>
+-#include <fstream>
++#include <sstream>
+ #include <GeographicLib/Constants.hpp>
+ 
+ #if defined(_MSC_VER)
+@@ -103,7 +103,7 @@ namespace GeographicLib {
+     std::string _name, _dir, _filename;
+     const bool _cubic;
+     const real _a, _e2, _degree, _eps;
+-    mutable std::ifstream _file;
++    mutable std::istringstream _filebuf;
+     real _rlonres, _rlatres;
+     std::string _description, _datetime;
+     real _offset, _scale, _maxerror, _rmserror;
+@@ -120,7 +120,7 @@ namespace GeographicLib {
+     mutable real _v00, _v01, _v10, _v11;
+     mutable real _t[nterms_];
+     void filepos(int ix, int iy) const {
+-      _file.seekg(std::streamoff
++      _filebuf.seekg(std::streamoff
+                   (_datastart +
+                    pixel_size_ * (unsigned(iy)*_swidth + unsigned(ix))));
+     }
+@@ -143,12 +143,12 @@ namespace GeographicLib {
+           filepos(ix, iy);
+           // initial values to suppress warnings in case get fails
+           char a = 0, b = 0;
+-          _file.get(a);
+-          _file.get(b);
++          _filebuf.get(a);
++          _filebuf.get(b);
+           unsigned r = ((unsigned char)(a) << 8) | (unsigned char)(b);
+           if (pixel_size_ == 4) {
+-            _file.get(a);
+-            _file.get(b);
++            _filebuf.get(a);
++            _filebuf.get(b);
+             r = (r << 16) | ((unsigned char)(a) << 8) | (unsigned char)(b);
+           }
+           return real(r);
+@@ -216,7 +216,8 @@ namespace GeographicLib {
+      * file is closed, and single-cell caching is turned off; this results in a
+      * Geoid object which \e is thread safe.
+      **********************************************************************/
+-    explicit Geoid(const std::string& name, const std::string& path = "",
++    explicit Geoid(const char* buf, std::size_t sz,
++                   const std::string& name, const std::string& path = "",
+                    bool cubic = true, bool threadsafe = false);
+ 
+     /**
+diff --git a/src/Geoid.cpp b/src/Geoid.cpp
+index 6e6d1767..d64c3752 100644
+--- a/src/Geoid.cpp
++++ b/src/Geoid.cpp
+@@ -198,7 +198,8 @@ namespace GeographicLib {
+      18,  -36,    2,   0,  -66,  -51, 0,   0,  102,  31,
+   };
+ 
+-  Geoid::Geoid(const std::string& name, const std::string& path, bool cubic,
++  Geoid::Geoid(const char* buf, std::size_t sz,
++               const std::string& name, const std::string& path, bool cubic,
+                bool threadsafe)
+     : _name(name)
+     , _dir(path)
+@@ -213,18 +214,17 @@ namespace GeographicLib {
+     if (_dir.empty())
+       _dir = DefaultGeoidPath();
+     _filename = _dir + "/" + _name + (pixel_size_ != 4 ? ".pgm" : ".pgm4");
+-    _file.open(_filename.c_str(), ios::binary);
+-    if (!(_file.good()))
++    if (!(_filebuf.good()))
+       throw GeographicErr("File not readable " + _filename);
+     string s;
+-    if (!(getline(_file, s) && s == "P5"))
++    if (!(getline(_filebuf, s) && s == "P5"))
+       throw GeographicErr("File not in PGM format " + _filename);
+     _offset = numeric_limits<real>::max();
+     _scale = 0;
+     _maxerror = _rmserror = -1;
+     _description = "NONE";
+     _datetime = "UNKNOWN";
+-    while (getline(_file, s)) {
++    while (getline(_filebuf, s)) {
+       if (s.empty())
+         continue;
+       if (s[0] == '#') {
+@@ -259,12 +259,12 @@ namespace GeographicLib {
+     }
+     {
+       unsigned maxval;
+-      if (!(_file >> maxval))
++      if (!(_filebuf >> maxval))
+         throw GeographicErr("Error reading maxval " + _filename);
+       if (maxval != pixel_max_)
+         throw GeographicErr("Incorrect value of maxval " + _filename);
+       // Add 1 for whitespace after maxval
+-      _datastart = (unsigned long long)(_file.tellg()) + 1ULL;
++      _datastart = (unsigned long long)(_filebuf.tellg()) + 1ULL;
+       _swidth = (unsigned long long)(_width);
+     }
+     if (_offset == numeric_limits<real>::max())
+@@ -282,10 +282,10 @@ namespace GeographicLib {
+     if (!(_height & 1))
+       // This is so that latitude grid includes the equator.
+       throw GeographicErr("Raster height is even " + _filename);
+-    _file.seekg(0, ios::end);
+-    if (!_file.good() ||
++    _filebuf.seekg(0, ios::end);
++    if (!_filebuf.good() ||
+         _datastart + pixel_size_ * _swidth * (unsigned long long)(_height) !=
+-        (unsigned long long)(_file.tellg()))
++        (unsigned long long)(_filebuf.tellg()))
+       // Possibly this test should be "<" because the file contains, e.g., a
+       // second image.  However, for now we are more strict.
+       throw GeographicErr("File has the wrong length " + _filename);
+@@ -295,10 +295,9 @@ namespace GeographicLib {
+     _ix = _width;
+     _iy = _height;
+     // Ensure that file errors throw exceptions
+-    _file.exceptions(ifstream::eofbit | ifstream::failbit | ifstream::badbit);
++    _filebuf.exceptions(istringstream::eofbit | istringstream::failbit | istringstream::badbit);
+     if (threadsafe) {
+       CacheAll();
+-      _file.close();
+       _threadsafe = true;
+     }
+   }
+@@ -470,12 +469,12 @@ namespace GeographicLib {
+         int xs1 = min(_width - iw1, _xsize);
+         filepos(iw1, iy1);
+         Utility::readarray<pixel_t, pixel_t, true>
+-          (_file, &(_data[iy - in][0]), xs1);
++          (_filebuf, &(_data[iy - in][0]), xs1);
+         if (xs1 < _xsize) {
+           // Wrap around longitude = 0
+           filepos(0, iy1);
+           Utility::readarray<pixel_t, pixel_t, true>
+-            (_file, &(_data[iy - in][xs1]), _xsize - xs1);
++            (_filebuf, &(_data[iy - in][xs1]), _xsize - xs1);
+         }
+       }
+       _cache = true;
