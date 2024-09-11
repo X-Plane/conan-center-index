@@ -1040,10 +1040,10 @@ index 0000000..57dce49
 +#endif // JWT_CPP_OPEN_SOURCE_PARSERS_JSONCPP_DEFAULTS_H
 diff --git a/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h
 new file mode 100644
-index 0000000..16f76f1
+index 0000000..fa62093
 --- /dev/null
 +++ b/include/jwt-cpp/traits/open-source-parsers-jsoncpp/traits.h
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,143 @@
 +#ifndef JWT_CPP_JSONCPP_TRAITS_H
 +#define JWT_CPP_JSONCPP_TRAITS_H
 +
@@ -1073,6 +1073,18 @@ index 0000000..16f76f1
 +					}
 +				}
 +				~array_type() = default;
++                const value_type& front() const {
++                    if (this->empty()) {
++                        throw std::out_of_range("array is empty");
++                    }
++                    return (*this)[0];
++                }
++                value_type& front() {
++                    if (this->empty()) {
++                        throw std::out_of_range("array is empty");
++                    }
++                    return (*this)[0];
++                }
 +				array_type& operator=(const array_type& o) = default;
 +				array_type& operator=(array_type&& o) noexcept = default;
 +			};
