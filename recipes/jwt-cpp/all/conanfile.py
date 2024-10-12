@@ -8,6 +8,7 @@ required_conan_version = ">=1.52.0"
 
 class JwtCppConan(ConanFile):
     name = "jwt-cpp"
+    user = "xplane"
     description = "A C++ JSON Web Token library for encoding/decoding"
     license = "MIT"
     url = "https://github.com/conan-io/conan-center-index"
