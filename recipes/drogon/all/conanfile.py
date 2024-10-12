@@ -15,6 +15,7 @@ class DrogonConan(ConanFile):
     name = "drogon"
     description = "A C++14/17/20 based HTTP web application framework running on Linux/macOS/Unix/Windows"
     license = "MIT"
+    user = "xplane"
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://github.com/drogonframework/drogon"
     topics = ("http-server", "non-blocking-io", "http-framework", "asynchronous-programming")

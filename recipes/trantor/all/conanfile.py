@@ -11,6 +11,7 @@ required_conan_version = ">=1.54.0"
 
 class TrantorConan(ConanFile):
     name = "trantor"
+    user = "xplane"
     description = "a non-blocking I/O tcp network lib based on c++14/17"
     license = "BSD-3-Clause"
     url = "https://github.com/conan-io/conan-center-index"
