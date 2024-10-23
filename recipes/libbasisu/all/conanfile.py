@@ -19,6 +19,7 @@ class LibBasisUniversalConan(ConanFile):
     homepage = "https://github.com/BinomialLLC/basis_universal"
     topics = ("basis", "textures", "compression")
 
+    user = "xplane"
     package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
     options = {
