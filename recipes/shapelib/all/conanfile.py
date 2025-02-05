@@ -14,6 +14,9 @@ class ShapelibConan(ConanFile):
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://github.com/OSGeo/shapelib"
     topics = ("osgeo", "shapefile", "esri", "geospatial")
+
+    user = "xplane"
+
     package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
     options = {
@@ -61,27 +64,27 @@ class ShapelibConan(ConanFile):
     def _patch_for_ios(self):
         cmakelists_path = os.path.join(self.source_folder, "CMakeLists.txt")
         content = load(self, cmakelists_path)
-        
+
         # Patch to handle iOS in Unix checks
         content = content.replace(
             "if(UNIX AND NOT APPLE)",
             "if(UNIX AND NOT (APPLE OR IOS))")
-        
+
         # Patch to disable building executables for iOS
         content = content.replace(
             "add_executable(shpdump shpdump.c)",
             "if(NOT IOS)\n  add_executable(shpdump shpdump.c)\nendif()")
-        
+
         content = content.replace(
             "add_executable(shptest shptest.c)",
             "if(NOT IOS)\n  add_executable(shptest shptest.c)\nendif()")
-        
+
         # Add iOS-specific flags
         content += "\nif(IOS)\n"
         content += "  set(CMAKE_C_FLAGS \"${CMAKE_C_FLAGS} -fembed-bitcode\")\n"
         content += "  set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -fembed-bitcode\")\n"
         content += "endif()\n"
-        
+
         save(self, cmakelists_path, content)
 
     def build(self):
