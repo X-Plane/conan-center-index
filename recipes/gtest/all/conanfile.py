@@ -7,7 +7,7 @@ from conan.tools.microsoft import is_msvc_static_runtime, msvc_runtime_flag
 from conan.tools.scm import Version
 import os
 
-required_conan_version = ">=2.1"
+required_conan_version = ">=1.54.0"
 
 
 class GTestConan(ConanFile):
@@ -123,7 +123,6 @@ class GTestConan(ConanFile):
         if Version(self.version) < "1.12.0":
             # Relocatable shared lib on Macos
             tc.cache_variables["CMAKE_POLICY_DEFAULT_CMP0042"] = "NEW"
-            tc.cache_variables["CMAKE_POLICY_VERSION_MINIMUM"] = "3.5" # CMake 4 support
         tc.generate()
 
     def _patch_sources(self):
@@ -191,3 +190,9 @@ class GTestConan(ConanFile):
                 self.cpp_info.components["gmock_main"].set_property("pkg_config_name", "gmock_main")
                 self.cpp_info.components["gmock_main"].libs = [f"gmock_main{self._postfix}"]
                 self.cpp_info.components["gmock_main"].requires = ["gmock"]
+
+        # TODO: to remove in conan v2 once cmake_find_package_* generators removed
+        self.cpp_info.names["cmake_find_package"] = "GTest"
+        self.cpp_info.names["cmake_find_package_multi"] = "GTest"
+        self.cpp_info.components["libgtest"].names["cmake_find_package"] = "gtest"
+        self.cpp_info.components["libgtest"].names["cmake_find_package_multi"] = "gtest"

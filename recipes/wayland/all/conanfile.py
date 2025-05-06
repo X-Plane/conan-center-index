@@ -54,8 +54,8 @@ class WaylandConan(ConanFile):
         self.requires("expat/[>=2.6.2 <3]")
 
     def validate(self):
-      if self.settings.os not in ("Linux", "Android"):
-            raise ConanInvalidConfiguration(f"{self.ref} only supports Linux or Android")
+        if self.settings.os != "Linux":
+            raise ConanInvalidConfiguration(f"{self.ref} only supports Linux")
 
     def build_requirements(self):
         self.tool_requires("meson/[>=1.4.0 <2]")
@@ -133,9 +133,7 @@ class WaylandConan(ConanFile):
             self.cpp_info.components["wayland-server"].libs = ["wayland-server"]
             self.cpp_info.components["wayland-server"].set_property("pkg_config_name", "wayland-server")
             self.cpp_info.components["wayland-server"].requires = ["libffi::libffi"]
-            if self.settings.os in ["Linux", "FreeBSD"]:
-                self.cpp_info.components["wayland-server"].system_libs = ["pthread", "m"]
-
+            self.cpp_info.components["wayland-server"].system_libs = ["pthread", "m"]
             self.cpp_info.components["wayland-server"].resdirs = ["res"]
             if self.version >= Version("1.21.0") and self.settings.os == "Linux":
                 self.cpp_info.components["wayland-server"].system_libs += ["rt"]
@@ -151,8 +149,7 @@ class WaylandConan(ConanFile):
             self.cpp_info.components["wayland-client"].libs = ["wayland-client"]
             self.cpp_info.components["wayland-client"].set_property("pkg_config_name", "wayland-client")
             self.cpp_info.components["wayland-client"].requires = ["libffi::libffi"]
-            if self.settings.os in ["Linux", "FreeBSD"]:
-                self.cpp_info.components["wayland-client"].system_libs = ["pthread", "m"]
+            self.cpp_info.components["wayland-client"].system_libs = ["pthread", "m"]
             self.cpp_info.components["wayland-client"].resdirs = ["res"]
             if self.version >= Version("1.21.0") and self.settings.os == "Linux":
                 self.cpp_info.components["wayland-client"].system_libs += ["rt"]
