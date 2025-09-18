@@ -3,7 +3,7 @@ from conan.errors import ConanInvalidConfiguration
 from conan.tools.apple import is_apple_os, fix_apple_shared_install_name
 from conan.tools.build import can_run, stdcpp_library
 from conan.tools.env import Environment, VirtualBuildEnv
-from conan.tools.files import copy, get, rm, rmdir, replace_in_file
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rm, rmdir, replace_in_file
 from conan.tools.gnu import PkgConfigDeps
 from conan.tools.layout import basic_layout
 from conan.tools.meson import Meson, MesonToolchain
@@ -12,7 +12,7 @@ from conan.tools.scm import Version
 
 import os
 
-required_conan_version = ">=2.1"
+required_conan_version = ">=1.60.0 <2.0 || >=2.0.6"
 
 
 class HarfbuzzConan(ConanFile):
@@ -50,6 +50,13 @@ class HarfbuzzConan(ConanFile):
     }
 
     short_paths = True
+
+    @property
+    def _settings_build(self):
+        return getattr(self, "settings_build", self.settings)
+
+    def export_sources(self):
+        export_conandata_patches(self)
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -93,15 +100,15 @@ class HarfbuzzConan(ConanFile):
             )
 
     def build_requirements(self):
-        self.tool_requires("meson/[>=1.4.0 <2]")
+        self.tool_requires("meson/1.4.0")
         if not self.conf.get("tools.gnu:pkg_config", check_type=str):
-            self.tool_requires("pkgconf/[>=2.2 <3]")
+            self.tool_requires("pkgconf/2.1.0")
         if self.options.with_glib:
             self.tool_requires("glib/<host_version>")
         if self.settings.os == "Macos":
             # Ensure that the gettext we use at build time is compatible
             # with the libiconv that is transitively exposed by glib
-            self.tool_requires("gettext/0.22.5")
+            self.tool_requires("gettext/0.21")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -124,7 +131,7 @@ class HarfbuzzConan(ConanFile):
 
         # Avoid conflicts with libiconv
         # see: https://github.com/conan-io/conan-center-index/pull/17046#issuecomment-1554629094
-        if self.settings_build.os == "Macos":
+        if self._settings_build.os == "Macos":
             env = Environment()
             env.define_path("DYLD_FALLBACK_LIBRARY_PATH", "$DYLD_LIBRARY_PATH")
             env.define_path("DYLD_LIBRARY_PATH", "")
@@ -153,6 +160,7 @@ class HarfbuzzConan(ConanFile):
         tc.generate()
 
     def build(self):
+        apply_conandata_patches(self)
         replace_in_file(self, os.path.join(self.source_folder, "meson.build"), "subdir('util')", "")
         meson = Meson(self)
         meson.configure()

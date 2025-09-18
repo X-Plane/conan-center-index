@@ -39,14 +39,8 @@ class LibFTPConan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
-        version = Version(self.version)
-
-        if version >= "1.5.0":
-            self.requires("boost/1.88.0", transitive_headers=True)
-        else:
-            self.requires("boost/1.86.0", transitive_headers=True)
-
-        if version >= "0.5.0":
+        self.requires("boost/1.86.0", transitive_headers=True)
+        if Version(self.version) >= "0.5.0":
             self.requires("openssl/[>=1.1 <4]", transitive_headers=True, transitive_libs=True)
 
     def validate(self):

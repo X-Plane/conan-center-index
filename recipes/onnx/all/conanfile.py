@@ -97,7 +97,6 @@ class OnnxConan(ConanFile):
                 )
 
     def build_requirements(self):
-        self.tool_requires("cmake/[>=3.18 <4]")
         if not self._is_legacy_one_profile:
             self.tool_requires("protobuf/<host_version>")
 

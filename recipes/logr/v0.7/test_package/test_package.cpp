@@ -11,8 +11,7 @@
 
 
 int main() {
-    auto logger =  logr::basic_ostream_logger_t<1024u>(std::cout,
-                                                       logr::log_message_level::debug );
+    auto logger =  logr::basic_ostream_logger_t<1024u>(std::cout);
  
     logger.info( "Hello World! [raw message]" );
     logger.info( LOGR_SRC_LOCATION, "Hello World! [raw message]" );

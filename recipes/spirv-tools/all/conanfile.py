@@ -1,10 +1,12 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.build import check_min_cppstd, stdcpp_library
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 from conan.tools.env import VirtualBuildEnv
-from conan.tools.files import copy, get, replace_in_file, rm, rmdir, save, apply_conandata_patches, export_conandata_patches
+from conan.tools.files import copy, get, replace_in_file, rm, rmdir, save
 from conan.tools.scm import Version
 import os
+import textwrap
 
 required_conan_version = ">=2.1"
 
@@ -32,8 +34,21 @@ class SpirvtoolsConan(ConanFile):
 
     short_paths = True
 
-    def export_sources(self):
-        export_conandata_patches(self)
+    @property
+    def _min_cppstd(self):
+        return "11" if Version(self.version) < "1.3.243" else "17"
+
+    @property
+    def _compilers_minimum_version(self):
+        return {
+            "17": {
+                "apple-clang": "10",
+                "clang": "7" if Version(self.version) >= "1.3.250" else "5",
+                "gcc": "8" if Version(self.version) >= "1.3.250" else "7",
+                "msvc": "191",
+                "Visual Studio": "15",
+            }
+        }.get(self._min_cppstd, {})
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -49,13 +64,15 @@ class SpirvtoolsConan(ConanFile):
     def requirements(self):
         self.requires(f"spirv-headers/{self.version}")
 
-    def validate_build(self):
-        # newer versions of the library require C++17 for internals
-        check_min_cppstd(self, 11 if Version(self.version) < "1.3.243" else 17)
-
     def validate(self):
-        # The interface requires C++11
-        check_min_cppstd(self, 11)
+        if self.settings.compiler.get_safe("cppstd"):
+            check_min_cppstd(self, self._min_cppstd)
+
+        minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
+        if minimum_version and Version(self.settings.compiler.version) < minimum_version:
+            raise ConanInvalidConfiguration(
+                f"{self.ref} requires C++{self._min_cppstd}, which your compiler does not support."
+            )
 
     def build_requirements(self):
         if Version(self.version) >= "1.3.239":
@@ -108,7 +125,6 @@ class SpirvtoolsConan(ConanFile):
         tc.generate()
 
     def _patch_sources(self):
-        apply_conandata_patches(self)
         # CMAKE_POSITION_INDEPENDENT_CODE was set ON for the entire
         # project in the lists file.
         replace_in_file(self, os.path.join(self.source_folder, "CMakeLists.txt"),

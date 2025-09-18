@@ -9,7 +9,7 @@ from conan.tools.env import VirtualRunEnv
 from conan.tools.gnu import AutotoolsToolchain, AutotoolsDeps, Autotools
 from conan.errors import ConanInvalidConfiguration
 
-required_conan_version = ">=2"
+required_conan_version = ">=1.53.0"
 
 
 class ReadLineConan(ConanFile):
@@ -33,14 +33,21 @@ class ReadLineConan(ConanFile):
         "with_library": "termcap",
     }
 
-    implements = ["auto_shared_fpic"]
-    languages = "C"
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
 
     def requirements(self):
         if self.options.with_library == "termcap":
             self.requires("termcap/1.3.1")
         elif self.options.with_library == "curses":
             self.requires("ncurses/6.4", transitive_headers=True, transitive_libs=True)
+
+    def configure(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
+        self.settings.rm_safe("compiler.libcxx")
+        self.settings.rm_safe("compiler.cppstd")
 
     def validate(self):
         if is_msvc(self):

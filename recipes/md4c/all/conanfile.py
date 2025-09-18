@@ -7,7 +7,7 @@ from conan.tools.scm import Version
 
 import os
 
-required_conan_version = ">=2"
+required_conan_version = ">=1.54.0"
 
 
 class Md4cConan(ConanFile):
@@ -62,7 +62,6 @@ class Md4cConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        self._patch_sources()
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -73,8 +72,6 @@ class Md4cConan(ConanFile):
             tc.preprocessor_definitions["MD4C_USE_UTF16"] = "1"
         elif self.options.encoding == "ascii":
             tc.preprocessor_definitions["MD4C_USE_ASCII"] = "1"
-        if Version(self.version) < "0.5.0":
-            tc.cache_variables["CMAKE_POLICY_VERSION_MINIMUM"] = "3.5"  # CMake 4 support
         tc.generate()
 
     def _patch_sources(self):
@@ -88,6 +85,7 @@ class Md4cConan(ConanFile):
         )
 
     def build(self):
+        self._patch_sources()
         cmake = CMake(self)
         cmake.configure()
         cmake.build()

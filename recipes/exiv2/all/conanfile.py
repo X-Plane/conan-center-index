@@ -71,8 +71,7 @@ class Exiv2Conan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
-        if self.settings.os != "Windows":
-            self.requires("libiconv/1.17")
+        self.requires("libiconv/1.17")
         if self.options.with_png:
             self.requires("libpng/[>=1.6 <2]")
             self.requires("zlib/[>=1.2.11 <2]")
@@ -170,8 +169,7 @@ class Exiv2Conan(ConanFile):
         # component exiv2lib
         self.cpp_info.components["exiv2lib"].set_property("cmake_target_name", "exiv2lib")
         self.cpp_info.components["exiv2lib"].libs = ["exiv2"]
-        if self.settings.os != "Windows":
-            self.cpp_info.components["exiv2lib"].requires = [ "libiconv::libiconv"]
+        self.cpp_info.components["exiv2lib"].requires = [ "libiconv::libiconv"]
         if self.options.with_png:
             self.cpp_info.components["exiv2lib"].requires.extend(["libpng::libpng", "zlib::zlib"])
         if self.options.with_curl:

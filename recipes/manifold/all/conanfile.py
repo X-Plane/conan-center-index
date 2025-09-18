@@ -1,9 +1,9 @@
 from conan import ConanFile
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
-from conan.tools.files import copy, get, rmdir, export_conandata_patches, apply_conandata_patches
-from conan.tools.scm import Version
+from conan.tools.files import copy, get, rmdir
 import os
+
 
 required_conan_version = ">=2.0.9"
 
@@ -28,10 +28,7 @@ class ManifoldConan(ConanFile):
         "with_parallel_acceleration": False,
     }
     implements = ["auto_shared_fpic"]
-    
-    def export_sources(self):
-        export_conandata_patches(self)
-        
+
     def layout(self):
         cmake_layout(self, src_folder="src")
 
@@ -45,11 +42,10 @@ class ManifoldConan(ConanFile):
         check_min_cppstd(self, 17)
 
     def build_requirements(self):
-        self.tool_requires("cmake/[>=3.18]")
+        self.tool_requires("cmake/[>=3.18 <4]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        apply_conandata_patches(self)
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -57,7 +53,6 @@ class ManifoldConan(ConanFile):
         tc.cache_variables["MANIFOLD_TEST"] = False
         tc.cache_variables["MANIFOLD_CBIND"] = False
         tc.cache_variables["MANIFOLD_PYBIND"] = False
-        tc.cache_variables["MANIFOLD_STRICT"] = False # no -Werror
         tc.cache_variables["MANIFOLD_PAR"] = self.options.with_parallel_acceleration
         tc.generate()
 

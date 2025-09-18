@@ -6,7 +6,7 @@ from conan.tools.files import copy, get, rmdir
 from conan.tools.scm import Version
 import os
 
-required_conan_version = ">=2.1"
+required_conan_version = ">=1.54.0"
 
 class Re2Conan(ConanFile):
     name = "re2"
@@ -29,7 +29,31 @@ class Re2Conan(ConanFile):
         "with_icu": False,
     }
 
-    implements = ["auto_shared_fpic"]
+    @property
+    def _min_cppstd(self):
+        return 14 if Version(self.version) >= "20230601" else 11
+
+    @property
+    def _compilers_minimum_version(self):
+        return {
+            "14": {
+                "gcc": "6",
+                "clang": "5",
+                "apple-clang": "10",
+                "Visual Studio": "15",
+                "msvc": "191",
+            },
+        }.get(self._min_cppstd, {})
+
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
+        if Version(self.version) < "20230201":
+            del self.options.with_icu
+
+    def configure(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
 
     def layout(self):
         cmake_layout(self, src_folder="src")
@@ -41,13 +65,14 @@ class Re2Conan(ConanFile):
             self.requires("abseil/20240116.1", transitive_headers=True)
 
     def validate(self):
-        min_cppstd = 14 if Version(self.version) >= "20230601" else 11
-        check_min_cppstd(self, min_cppstd)
+        if self.settings.compiler.get_safe("cppstd"):
+            check_min_cppstd(self, self._min_cppstd)
 
-        if "abseil" in self.dependencies.host:
-            abseil_cppstd = self.dependencies.host['abseil'].info.settings.compiler.cppstd
-            if abseil_cppstd != self.settings.compiler.cppstd:
-                raise ConanInvalidConfiguration(f"re2 and abseil must be built with the same compiler.cppstd setting")
+        minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
+        if minimum_version and Version(self.settings.compiler.version) < minimum_version:
+            raise ConanInvalidConfiguration(
+                f"{self.ref} requires C++{self._min_cppstd}, which your compiler does not support."
+            )
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)

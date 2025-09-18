@@ -110,7 +110,7 @@ class OpenCascadeConan(ConanFile):
             self.requires("xorg/system")
         # TODO: add vtk support?
         if self.options.with_ffmpeg:
-            self.requires("ffmpeg/[>=6.0 <8]")
+            self.requires("ffmpeg/6.0")
         if self.options.with_freeimage:
             self.requires("freeimage/3.18.0")
         if self.options.with_openvr:
@@ -135,9 +135,9 @@ class OpenCascadeConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
 
-        if Version(self.version) >= "7.8.0":
-            cppstd = str(self.settings.compiler.cppstd).replace("gnu", "").upper()
-            tc.cache_variables["BUILD_CPP_STANDARD"] = f"C++{cppstd}"
+        # Inject C++ standard from profile since we have removed hardcoded C++ standard from upstream build files
+        if not valid_min_cppstd(self, self._min_cppstd):
+            tc.variables["CMAKE_CXX_STANDARD"] = self._min_cppstd
 
         tc.cache_variables["BUILD_LIBRARY_TYPE"] = "Shared" if self.options.shared else "Static"
         tc.cache_variables["INSTALL_TEST_CASES"] = False
@@ -188,14 +188,6 @@ class OpenCascadeConan(ConanFile):
         deps.generate()
 
     def _patch_sources(self):
-        def _replace_find_package(cmakelists, file, package_name):
-            if Version(self.version) >= "7.9.0":
-                pattern = f"list (APPEND OCCT_3RDPARTY_CMAKE_LIST \"adm/cmake/{file}\")"
-            else:
-                pattern = f"OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/{file}\")"
-
-            replace_in_file(self, cmakelists, pattern, f"find_package({package_name} REQUIRED)")
-
         apply_conandata_patches(self)
 
         cmakelists = os.path.join(self.source_folder, "CMakeLists.txt")
@@ -246,17 +238,22 @@ class OpenCascadeConan(ConanFile):
 
         ## freetype
         deps_targets.append("Freetype::Freetype")
-        _replace_find_package(cmakelists, "freetype", "Freetype")
+        replace_in_file(
+            self,
+            cmakelists,
+            "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/freetype\")",
+            "find_package(Freetype REQUIRED MODULE)",
+        )
         freetype_libs = " ".join(self.dependencies["freetype"].cpp_info.aggregated_components().libs)
         replace_in_file(
             self,
             occt_csf_cmake,
             "set (CSF_FREETYPE \"freetype\")",
-            f"set (CSF_FREETYPE \"{freetype_libs}\")"
+            f"set (CSF_FREETYPE \"{freetype_libs}\")",
         )
         ## tcl
         deps_targets.append("tcl::tcl")
-        _replace_find_package(cmakelists, "tcl", "TCL")
+        replace_in_file(self, cmakelists, "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/tcl\")", "find_package(TCL REQUIRED)")
         tcl_libs = " ".join(self.dependencies["tcl"].cpp_info.aggregated_components().libs)
         csf_tcl_libs = f"set (CSF_TclLibs \"{tcl_libs}\")"
         replace_in_file(self, occt_csf_cmake, "set (CSF_TclLibs     \"tcl86\")", csf_tcl_libs)
@@ -268,7 +265,7 @@ class OpenCascadeConan(ConanFile):
         ## tk
         if self._link_tk:
             deps_targets.append("tk::tk")
-            _replace_find_package(cmakelists, "tk", "tk")
+            replace_in_file(self, cmakelists, "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/tk\")", "find_package(tk REQUIRED)")
             tk_libs = " ".join(self.dependencies["tk"].cpp_info.aggregated_components().libs)
             csf_tk_libs = f"set (CSF_TclTkLibs \"{tk_libs}\")"
             replace_in_file(self, occt_csf_cmake, "set (CSF_TclTkLibs   \"tk86\")", csf_tk_libs)
@@ -298,7 +295,12 @@ class OpenCascadeConan(ConanFile):
         ## onetbb
         if self.options.with_tbb:
             deps_targets.append("TBB::tbb")
-            _replace_find_package(cmakelists, "tbb", "TBB")
+            replace_in_file(
+                self,
+                cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/tbb\")",
+                "find_package(TBB REQUIRED)",
+            )
             tbb_libs = " ".join(self.dependencies["onetbb"].cpp_info.aggregated_components().libs)
             replace_in_file(
                 self,
@@ -309,7 +311,12 @@ class OpenCascadeConan(ConanFile):
         ## ffmpeg
         if self.options.with_ffmpeg:
             deps_targets.append("ffmpeg::ffmpeg")
-            _replace_find_package(cmakelists, "ffmpeg", "ffmpeg")
+            replace_in_file(
+                self,
+                cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/ffmpeg\")",
+                "find_package(ffmpeg REQUIRED)",
+            )
             ffmpeg_libs = " ".join(self.dependencies["ffmpeg"].cpp_info.aggregated_components().libs)
             replace_in_file(
                 self,
@@ -320,7 +327,11 @@ class OpenCascadeConan(ConanFile):
         ## freeimage
         if self.options.with_freeimage:
             deps_targets.append("freeimage::freeimage")
-            _replace_find_package(cmakelists, "freeimage", "freeimage")
+            replace_in_file(
+                self, cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/freeimage\")",
+                "find_package(freeimage REQUIRED)",
+            )
             freeimage_libs = " ".join(self.dependencies["freeimage"].cpp_info.aggregated_components().libs)
             replace_in_file(
                 self,
@@ -331,7 +342,12 @@ class OpenCascadeConan(ConanFile):
         ## openvr
         if self.options.with_openvr:
             deps_targets.append("openvr::openvr")
-            _replace_find_package(cmakelists, "openvr", "openvr")
+            replace_in_file(
+                self,
+                cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/openvr\")",
+                "find_package(openvr REQUIRED)",
+            )
             openvr_libs = " ".join(self.dependencies["openvr"].cpp_info.aggregated_components().libs)
             replace_in_file(
                 self,
@@ -342,11 +358,21 @@ class OpenCascadeConan(ConanFile):
         ## rapidjson
         if self.options.with_rapidjson:
             deps_targets.append("rapidjson")
-            _replace_find_package(cmakelists, "rapidjson", "RapidJSON")
+            replace_in_file(
+                self,
+                cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/rapidjson\")",
+                "find_package(RapidJSON REQUIRED)",
+            )
         ## draco
         if self.options.get_safe("with_draco"):
             deps_targets.append("draco::draco")
-            _replace_find_package(cmakelists, "draco", "draco")
+            replace_in_file(
+                self,
+                cmakelists,
+                "OCCT_INCLUDE_CMAKE_FILE (\"adm/cmake/draco\")",
+                "find_package(draco REQUIRED)",
+            )
         ## opengl
         replace_in_file(
             self,
@@ -387,9 +413,8 @@ class OpenCascadeConan(ConanFile):
 
         # Honor fPIC option, compiler.cppstd and compiler.libcxx
         replace_in_file(self, occt_defs_flags_cmake, "-fPIC", "")
-        if Version(self.version) < "7.9.0":
-            replace_in_file(self, occt_defs_flags_cmake, "-std=c++0x", "")
-            replace_in_file(self, occt_defs_flags_cmake, "-std=gnu++0x", "")
+        replace_in_file(self, occt_defs_flags_cmake, "-std=c++0x", "")
+        replace_in_file(self, occt_defs_flags_cmake, "-std=gnu++0x", "")
         replace_in_file(self, occt_defs_flags_cmake, "-stdlib=libc++", "")
         replace_in_file(self, occt_csf_cmake,
                               "set (CSF_ThreadLibs  \"pthread rt stdc++\")",
@@ -457,8 +482,6 @@ class OpenCascadeConan(ConanFile):
             "CSF_Draco": {"externals": ["draco::draco"] if self.options.get_safe("with_draco") else []},
             "CSF_TBB": {"externals": ["onetbb::onetbb"] if self.options.with_tbb else []},
             "CSF_VTK": {},
-            # TODO: If requested, allow jemalloc/tbb instead of default native
-            "CSF_MMGR": {},
             # Android system libs
             "CSF_androidlog": {"system_libs": ["log"] if self.settings.os == "Android" else []},
             # Linux system libs
@@ -523,6 +546,11 @@ class OpenCascadeConan(ConanFile):
         def _register_components(modules_dict):
             for module, targets in modules_dict.items():
                 conan_component_module_name = _to_qualified_name(module)
+                # FIXME: in this "module" target we would like to model COMPONENTS for find_package() but
+                #       for the moment it generates in CMakeDeps some weird component name like
+                #       opencascade::FoundationClasses instead of FoundationClasses.
+                #       see https://github.com/conan-io/conan/issues/10258
+                self.cpp_info.components[conan_component_module_name].set_property("cmake_target_name", module)
 
                 for target_lib, target_deps in targets.items():
                     conan_component_target_name = _to_qualified_name(target_lib)

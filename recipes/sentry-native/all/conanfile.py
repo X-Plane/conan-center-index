@@ -51,9 +51,7 @@ class SentryNativeConan(ConanFile):
 
     @property
     def _min_cppstd(self):
-        # Sentry-native broke support of C++17 in 0.7.8 and fixed it in 0.7.19
-        # https://github.com/getsentry/sentry-native/releases/tag/0.7.19
-        if  self.options.get_safe("with_crashpad") == "sentry" and Version(self.version) >= "0.7.8" and Version(self.version) < "0.7.19":
+        if Version(self.version) >= "0.7.8" and self.options.get_safe("with_crashpad") == "sentry":
             return "20"
         else:
             return "17"
@@ -68,7 +66,7 @@ class SentryNativeConan(ConanFile):
                 "msvc": "192",
                 "gcc": "11",
                 "clang": "14",
-                "apple-clang": "14", #requires 14 to build crashpad/minidump: https://github.com/llvm/llvm-project/issues/58637
+                "apple-clang": "14",
             }
         minimum_gcc_version = "5"
         if self.options.get_safe("backend") == "breakpad" or self.options.get_safe("backend") == "crashpad":
@@ -129,7 +127,8 @@ class SentryNativeConan(ConanFile):
             if self.options.with_breakpad == "google":
                 self.requires("breakpad/cci.20210521")
         if self.options.get_safe("qt"):
-            self.requires("qt/[>=5.15.16 <7]")
+            self.requires("qt/5.15.11")
+            self.requires("openssl/[>=1.1 <4]")
 
     def validate(self):
         check_min_cppstd(self, self._min_cppstd)
@@ -137,7 +136,7 @@ class SentryNativeConan(ConanFile):
         minimum_version = self._minimum_compilers_version.get(str(self.settings.compiler), False)
         if minimum_version and Version(self.settings.compiler.version) < minimum_version:
             raise ConanInvalidConfiguration(
-                f"{self.ref} requires C++{self._min_cppstd}, which your compiler {self.settings.compiler} version {self.settings.compiler.version} doesn't support."
+                f"{self.ref} requires C++{self._min_cppstd}, which your compiler doesn't support."
             )
         if self.options.transport == "winhttp" and self.settings.os != "Windows":
             raise ConanInvalidConfiguration("The winhttp transport is only supported on Windows")
@@ -205,7 +204,7 @@ class SentryNativeConan(ConanFile):
         if self.options.transport == "curl":
             self.cpp_info.components["sentry"].requires.extend(["libcurl::libcurl"])
         if self.options.get_safe("qt"):
-            self.cpp_info.components["sentry"].requires.append("qt::qtCore")
+            self.cpp_info.components["sentry"].requires.extend(["qt::qt", "openssl::openssl"])
 
         if not self.options.shared:
             self.cpp_info.components["sentry"].defines = ["SENTRY_BUILD_STATIC"]

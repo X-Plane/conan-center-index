@@ -29,8 +29,6 @@ class CrowConan(ConanFile):
 
     @property
     def _min_cppstd(self):
-        if Version(self.version) >= "1.2.1":
-            return 17
         return 11
 
     def configure(self):
