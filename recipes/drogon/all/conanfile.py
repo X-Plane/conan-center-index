@@ -80,7 +80,7 @@ class DrogonConan(ConanFile):
             self.requires("trantor/1.5.19@xplane", transitive_headers=True, transitive_libs=True)
         else:
             self.requires("trantor/1.5.21@xplane", transitive_headers=True, transitive_libs=True)
-        self.requires("jsoncpp/[>=1.9 <2", transitive_headers=True, transitive_libs=True)
+        self.requires("jsoncpp/[>=1.9 <2]", transitive_headers=True, transitive_libs=True)
         self.requires("openssl/[>=1.1 <4]")
         self.requires("zlib/[>=1.2.11 <2]")
         if self.settings.os == "Linux":
