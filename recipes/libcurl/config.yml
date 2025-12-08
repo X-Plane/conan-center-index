@@ -1,3 +1,9 @@
 versions:
+  "8.16.0":
+    folder: all
   "8.15.0":
     folder: all
+  "8.14.1":
+    folder: xplane_old
+  "8.12.1":
+    folder: xplane_old

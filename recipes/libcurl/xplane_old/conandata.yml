@@ -1,0 +1,16 @@
+sources:
+  "8.14.1":
+    url:
+      - "https://curl.se/download/curl-8.14.1.tar.xz"
+      - "https://github.com/curl/curl/releases/download/curl-8_14_1/curl-8.14.1.tar.xz"
+    sha256: "f4619a1e2474c4bbfedc88a7c2191209c8334b48fa1f4e53fd584cc12e9120dd"
+  "8.12.1":
+    url:
+      - "https://curl.se/download/curl-8.12.1.tar.xz"
+      - "https://github.com/curl/curl/releases/download/curl-8_12_1/curl-8.12.1.tar.xz"
+    sha256: "0341f1ed97a26c811abaebd37d62b833956792b7607ea3f15d001613c76de202"
+  "7.88.1":
+    url:
+      - "https://curl.se/download/curl-7.88.1.tar.xz"
+      - "https://github.com/curl/curl/releases/download/curl-7_88_1/curl-7.88.1.tar.xz"
+    sha256: "1dae31b2a7c1fe269de99c0c31bb488346aab3459b5ffca909d6938249ae415f"
